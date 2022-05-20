@@ -14,7 +14,9 @@ pub fn hash_file<P: AsRef<Path>>(path: P) -> Result<String, io::Error> {
 
     let mut buf = [0u8; 512];
 
-    while let Ok(byte_count) = reader.read(&mut buf) {
+    loop {
+        let byte_count = reader.read(&mut buf)?;
+
         if byte_count == 0 {
             break;
         }
