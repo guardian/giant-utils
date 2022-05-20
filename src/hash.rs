@@ -26,7 +26,7 @@ pub fn hash_file<P: AsRef<Path>>(path: P) -> Result<String, io::Error> {
 
     let digest = hasher.finalize();
 
-    let encoded_digest = base64::encode_config(digest, base64::STANDARD_NO_PAD);
+    let encoded_digest = base64::encode_config(digest, base64::URL_SAFE_NO_PAD);
 
     Ok(encoded_digest)
 }
