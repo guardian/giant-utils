@@ -7,7 +7,6 @@ use urlencoding::encode;
 
 use crate::model::cli_error::CliError;
 
-
 fn get_path(uri: &str) -> Result<PathBuf, CliError> {
     if let Some(mut path) = dirs::home_dir() {
         path.push(".giant-utils");

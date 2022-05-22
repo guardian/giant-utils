@@ -13,21 +13,26 @@ mod hash;
 struct Cli {
     #[clap(subcommand)]
     command: Commands,
+    /// Set the output format
     #[clap(arg_enum, short, long, default_value_t=OutputFormat::TSV)]
     format: OutputFormat,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Hash a file at the path provided to produce a Giant ID
     Hash { path: String },
+    /// Login to the Giant instance at the provided URI with an auth token
     Login { 
         uri: String, 
         token: String 
     },
+    /// Check if the provided hash is in Giant, and you have permission to see it
     CheckHash {
         uri: String,
         hash: String,
     },
+    /// Check if the provided file is in Giant, and you have permission to see it
     CheckFile {
         uri: String,
         path: String,
