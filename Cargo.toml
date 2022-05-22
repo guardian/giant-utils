@@ -8,4 +8,13 @@ edition = "2021"
 [dependencies]
 base64 = "0.13.0"
 clap = { version = "3.1.18", features = ["derive"] }
+dirs = "4.0.0"
+serde = { version = "1.0.137", features = ["derive"] }
+serde_json = "1.0.81"
 sha2 = "0.10.2"
+thiserror = "1.0.31"
+tsv = "0.1.1"
+reqwest = { version = "0.11.10", features = ["blocking"] }
+reflection = "0.1.1"
+reflection_derive = "0.1.1"
+urlencoding = "2.1.0"

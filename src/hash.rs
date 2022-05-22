@@ -1,13 +1,14 @@
 use std::{
     fs::File,
-    io::{self, BufReader, Read},
-    path::Path,
+    io::{BufReader, Read},
 };
 
 use sha2::{Digest, Sha512};
 
-pub fn hash_file<P: AsRef<Path>>(path: P) -> Result<String, io::Error> {
-    let f = File::open(path)?;
+use crate::{model::{hash_file_output::HashFileOutput, cli_error::CliError}};
+
+pub fn hash_file(path: String) -> Result<HashFileOutput, CliError> {
+    let f = File::open(&path)?;
     let mut reader = BufReader::new(f);
 
     let mut hasher = Sha512::new();
@@ -28,5 +29,5 @@ pub fn hash_file<P: AsRef<Path>>(path: P) -> Result<String, io::Error> {
 
     let encoded_digest = base64::encode_config(digest, base64::URL_SAFE_NO_PAD);
 
-    Ok(encoded_digest)
+    Ok(HashFileOutput::new(encoded_digest, path))
 }
