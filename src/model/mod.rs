@@ -2,3 +2,8 @@ pub mod cli_error;
 pub mod cli_output;
 pub mod exit_code;
 pub mod hash_file_output;
+pub mod lang;
+pub mod uri;
+pub mod forms;
+pub mod collection;
+pub mod ingestion;

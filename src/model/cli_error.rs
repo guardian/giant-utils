@@ -1,4 +1,4 @@
-use reqwest::header::InvalidHeaderValue;
+use reqwest::{header::InvalidHeaderValue, StatusCode};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -13,4 +13,8 @@ pub enum CliError {
     APIAuthError,
     #[error("Your current OS is not supported, please use Linux, MacOS, or Windows")]
     UnsupportedSystem,
+    #[error("Input error: {0}")]
+    InputError(String),
+    #[error("Unexpected response from server: {0}")]
+    UnexpectedResponse(StatusCode),
 }

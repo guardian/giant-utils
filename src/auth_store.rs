@@ -1,6 +1,7 @@
 use std::{
-    io::{ Read, Write},
-    fs::{File, self}, path::PathBuf
+    fs::{self, File},
+    io::{Read, Write},
+    path::PathBuf,
 };
 
 use urlencoding::encode;
@@ -32,7 +33,7 @@ pub fn get(uri: &str) -> Result<String, CliError> {
     Ok(token)
 }
 
-pub fn set(uri: &str, token: &str) -> Result<(), CliError>{
+pub fn set(uri: &str, token: &str) -> Result<(), CliError> {
     let path = get_path(uri)?;
     let mut file = File::create(path)?;
 
