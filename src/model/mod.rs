@@ -8,4 +8,5 @@ pub mod hash_file_output;
 pub mod ingestion;
 pub mod ingestion_file;
 pub mod lang;
+pub mod log_message;
 pub mod uri;

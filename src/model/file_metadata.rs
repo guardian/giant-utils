@@ -17,12 +17,7 @@ pub struct FileMetadata {
 }
 
 impl FileMetadata {
-    pub fn new(
-        ingestion_uri: &Uri,
-        file: IngestionFile,
-        languages: &Vec<Language>,
-        path: impl AsRef<Path>,
-    ) -> Self {
+    pub fn new(ingestion_uri: &Uri, file: IngestionFile, languages: &Vec<Language>) -> Self {
         FileMetadata {
             ingestion: ingestion_uri.as_str().to_owned(),
             file,

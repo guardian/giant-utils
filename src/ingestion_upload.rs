@@ -8,13 +8,14 @@ use futures::{stream, StreamExt};
 use humantime::format_duration;
 use indicatif::ProgressBar;
 use reqwest::StatusCode;
+use tokio::sync::mpsc;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::{
     model::{
         cli_error::CliError, file_metadata::FileMetadata, ingestion_file::IngestionFile,
-        lang::Language, uri::Uri,
+        lang::Language, log_message::LogMessage, uri::Uri,
     },
     services::s3_client::{self, S3Client},
 };
@@ -28,6 +29,8 @@ pub async fn ingestion_upload(
 ) -> Result<(), CliError> {
     let s3_client = S3Client::new(&bucket_name).await;
 
+    let log_file = tokio::fs::File::create("ingestion.log").await;
+    let (sender, receiver) = mpsc::unbounded_channel::<LogMessage>();
     println!("Counting files");
     // Not ideal to traverse twice but at least this way we are able to measure progress
     // Could experiment with spinning up two threads, one doing total counts and one doing uploads
