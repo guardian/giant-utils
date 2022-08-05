@@ -1,4 +1,4 @@
-use std::{ops::Deref, path::PathBuf};
+use std::path::PathBuf;
 
 use reqwest::{blocking::Client, header::HeaderMap, StatusCode};
 
@@ -96,7 +96,7 @@ pub fn get_or_insert_ingestion(
         let create_ingestion = CreateIngestion {
             path: Some(path),
             name: Some(ingestion.to_owned()),
-            languages: languages,
+            languages,
             fixed: Some(false), // This is hardcoded to false in the existing CLI
             default: Some(false),
         };

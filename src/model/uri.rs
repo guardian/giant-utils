@@ -24,12 +24,12 @@ impl Uri {
         let base = self.0.clone();
         // Kinda annoying that we have to deal with encoding issues in paths which requires a lot of allocation
         let path_str = path.as_ref().display().to_string();
-        let uri = if path_str.starts_with("/") {
+        let uri = if path_str.starts_with('/') {
             // This should generally not happen unless
             // you're ingesting from the root of your machine
-            format!("{}{}", base, path_str.trim_end_matches("/"))
+            format!("{}{}", base, path_str.trim_end_matches('/'))
         } else {
-            format!("{}/{}", base, path_str.trim_end_matches("/"))
+            format!("{}/{}", base, path_str.trim_end_matches('/'))
         };
 
         Uri(uri)

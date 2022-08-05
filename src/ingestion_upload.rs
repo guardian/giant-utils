@@ -1,5 +1,4 @@
 use std::{
-    fs::FileType,
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -7,7 +6,6 @@ use std::{
 use futures::{stream, StreamExt};
 use humantime::format_duration;
 use indicatif::ProgressBar;
-use reqwest::StatusCode;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -17,7 +15,7 @@ use crate::{
         cli_error::CliError, file_metadata::FileMetadata, ingestion_file::IngestionFile,
         lang::Language, log_message::LogMessage, uri::Uri,
     },
-    services::s3_client::{self, S3Client},
+    services::s3_client::S3Client,
 };
 
 pub async fn ingestion_upload(
@@ -25,9 +23,9 @@ pub async fn ingestion_upload(
     languages: &Vec<Language>,
     path: impl AsRef<Path>,
     bucket_name: &str,
-    sse_algorithm: &str,
+    _sse_algorithm: &str,
 ) -> Result<(), CliError> {
-    let s3_client = S3Client::new(&bucket_name).await;
+    let s3_client = S3Client::new(bucket_name).await;
 
     let log_file = tokio::fs::File::create("ingestion.log").await;
     let (sender, receiver) = mpsc::unbounded_channel::<LogMessage>();
@@ -71,14 +69,13 @@ pub async fn ingestion_upload(
                     .as_millis();
                 let uuid = Uuid::new_v4();
 
-                const DATA_PREFIX: &'static str = "data";
-                const METADATA_PREFIX: &'static str = "metadata";
-                const DATA_SUFFIX: &'static str = "data";
-                const METADATA_SUFFIX: &'static str = "metadata.json";
+                const DATA_PREFIX: &str = "data";
+                const METADATA_PREFIX: &str = "metadata";
+                const DATA_SUFFIX: &str = "data";
+                const METADATA_SUFFIX: &str = "metadata.json";
 
-                let ingestion_file = IngestionFile::from_file(&ingestion_uri, &path, &dir).unwrap();
-                let metadata =
-                    FileMetadata::new(ingestion_uri, ingestion_file, languages, &dir.path());
+                let ingestion_file = IngestionFile::from_file(ingestion_uri, &path, &dir).unwrap();
+                let metadata = FileMetadata::new(ingestion_uri, ingestion_file, languages);
                 let metadata_key =
                     format!("{METADATA_PREFIX}/{current_millis}_{uuid}.{METADATA_SUFFIX}");
                 if let Err(e) = s3_client.upload_metadata(&metadata_key, metadata).await {
@@ -111,7 +108,7 @@ pub async fn ingestion_upload(
     println!("Finished!");
     println!(
         "  Elapsed: {}",
-        format_duration(start_time.elapsed().unwrap()).to_string()
+        format_duration(start_time.elapsed().unwrap())
     );
     println!("  Success: {success_count}");
     println!("  Failure: {failure_count}");
