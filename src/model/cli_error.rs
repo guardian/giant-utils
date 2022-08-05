@@ -1,3 +1,5 @@
+use aws_sdk_s3::{error::PutObjectError, types::SdkError};
+use aws_smithy_http::operation::Response;
 use reqwest::{header::InvalidHeaderValue, StatusCode};
 use thiserror::Error;
 
@@ -17,4 +19,6 @@ pub enum CliError {
     InputError(String),
     #[error("Unexpected response from server: {0}")]
     UnexpectedResponse(StatusCode),
+    #[error("Error while uploading to S3")]
+    IngestionUploadError(#[from] SdkError<PutObjectError, Response>),
 }

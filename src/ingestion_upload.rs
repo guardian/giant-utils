@@ -5,7 +5,9 @@ use std::{
 };
 
 use futures::{stream, StreamExt};
+use humantime::format_duration;
 use indicatif::ProgressBar;
+use reqwest::StatusCode;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
@@ -50,8 +52,9 @@ pub async fn ingestion_upload(
 
     let pb = ProgressBar::new(total_files);
 
-    stream::iter(walker)
-        .for_each(|dir| {
+    let start_time = SystemTime::now();
+    let results = stream::iter(walker)
+        .map(|dir| {
             let pb = &pb;
             let ingestion_uri = &ingestion_uri;
             let path = &path;
@@ -77,19 +80,38 @@ pub async fn ingestion_upload(
                     format!("{METADATA_PREFIX}/{current_millis}_{uuid}.{METADATA_SUFFIX}");
                 if let Err(e) = s3_client.upload_metadata(&metadata_key, metadata).await {
                     eprintln!("Oh nO! {}", e);
+                    pb.inc(1);
+                    Err(e)?
+                } else {
+                    let data_key = format!("{DATA_PREFIX}/{current_millis}_{uuid}.{DATA_SUFFIX}");
+                    if let Err(e) = s3_client.upload_file(&data_key, &dir.path()).await {
+                        eprintln!("Oh nO! {}", e);
+                        pb.inc(1);
+                        Err(e)?
+                    } else {
+                        pb.inc(1);
+                        Ok(())
+                    }
                 }
-
-                let data_key = format!("{DATA_PREFIX}/{current_millis}_{uuid}.{DATA_SUFFIX}");
-                if let Err(e) = s3_client.upload_file(&data_key, &dir.path()).await {
-                    eprintln!("Oh nO! {}", e);
-                }
-
-                // Bump the bar along - I've checked the code and it uses an atomic counter internally
-                // with SeqCst ordering, so should be thread safe
-                pb.inc(1);
             }
         })
+        .buffer_unordered(128)
+        .collect::<Vec<anyhow::Result<()>>>()
         .await;
+
+    let success_count = results
+        .iter()
+        .filter(|status| matches!(status, Ok(())))
+        .count();
+    let failure_count = results.len() - success_count;
+
+    println!("Finished!");
+    println!(
+        "  Elapsed: {}",
+        format_duration(start_time.elapsed().unwrap()).to_string()
+    );
+    println!("  Success: {success_count}");
+    println!("  Failure: {failure_count}");
 
     Ok(())
 }
