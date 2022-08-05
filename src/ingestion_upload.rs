@@ -48,13 +48,13 @@ pub async fn ingestion_upload(
         let mut writer = BufWriter::new(log_file);
 
         match format {
-            OutputFormat::JSON => {
+            OutputFormat::Json => {
                 while let Some(message) = receiver.recv().await {
                     let buf = message.to_json();
                     writer.write_all(buf.as_bytes()).await.unwrap();
                 }
             }
-            OutputFormat::TSV => {
+            OutputFormat::Tsv => {
                 while let Some(message) = receiver.recv().await {
                     let buf = message.to_tsv_row();
                     writer.write_all(buf.as_bytes()).await.unwrap()

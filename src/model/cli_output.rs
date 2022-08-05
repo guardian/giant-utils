@@ -5,21 +5,21 @@ use reflection::Reflection;
 use serde::Serialize;
 use tsv::Config;
 
-use super::exit_code::ExitCode;
+use super::exit_code::FailureExitCode;
 
 #[derive(ValueEnum, Clone)]
 pub enum OutputFormat {
-    TSV,
-    JSON,
+    Tsv,
+    Json,
 }
 
 pub struct CliResult<T: Serialize + Reflection, E: Error> {
     inner: Result<T, E>,
-    exit_code: ExitCode,
+    exit_code: FailureExitCode,
 }
 
 impl<T: Serialize + Reflection, E: Error> CliResult<T, E> {
-    pub fn new(inner: Result<T, E>, exit_code: ExitCode) -> Self {
+    pub fn new(inner: Result<T, E>, exit_code: FailureExitCode) -> Self {
         CliResult { inner, exit_code }
     }
 
@@ -36,29 +36,29 @@ impl<T: Serialize + Reflection, E: Error> CliResult<T, E> {
     pub fn print_or_exit(self, format: &OutputFormat) {
         match self.inner {
             Ok(r) => match format {
-                OutputFormat::TSV => {
+                OutputFormat::Tsv => {
                     match Config::make_config(false, "()".into(), "TRUE".into(), "FALSE".into()) {
                         Ok(config) => match tsv::to_string(&r, config) {
                             Ok(text) => println!("{}", text),
                             Err(e) => {
                                 eprintln!("Failed to serialize output");
                                 eprintln!("{}", e);
-                                std::process::exit(ExitCode::SerializationFailed as i32);
+                                std::process::exit(FailureExitCode::Serialization as i32);
                             }
                         },
                         Err(e) => {
                             eprintln!("Invalid TSV output config, you'll need a new build of this tool to fix this");
                             eprintln!("{}", e);
-                            std::process::exit(ExitCode::SerializationFailed as i32);
+                            std::process::exit(FailureExitCode::Serialization as i32);
                         }
                     }
                 }
-                OutputFormat::JSON => match serde_json::to_string(&r) {
+                OutputFormat::Json => match serde_json::to_string(&r) {
                     Ok(text) => println!("{}", text),
                     Err(e) => {
                         eprintln!("Failed to serialize output");
                         eprintln!("{}", e);
-                        std::process::exit(ExitCode::SerializationFailed as i32);
+                        std::process::exit(FailureExitCode::Serialization as i32);
                     }
                 },
             },

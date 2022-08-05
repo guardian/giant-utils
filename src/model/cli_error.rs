@@ -20,5 +20,5 @@ pub enum CliError {
     #[error("Unexpected response from server: {0}")]
     UnexpectedResponse(StatusCode),
     #[error("Error while uploading to S3")]
-    IngestionUploadError(#[from] SdkError<PutObjectError, Response>),
+    IngestionUploadError(#[from] Box<SdkError<PutObjectError, Response>>),
 }

@@ -7,7 +7,7 @@ use ingestion_upload::ingestion_upload;
 use model::{
     cli_error::CliError,
     cli_output::{CliResult, OutputFormat},
-    exit_code::ExitCode,
+    exit_code::FailureExitCode,
     lang::Language,
     uri::Uri,
 };
@@ -29,7 +29,7 @@ struct Cli {
     #[clap(subcommand)]
     command: Commands,
     /// Set the output format
-    #[clap(arg_enum, short, long, default_value_t=OutputFormat::TSV)]
+    #[clap(arg_enum, short, long, default_value_t=OutputFormat::Tsv)]
     format: OutputFormat,
 }
 
@@ -73,9 +73,6 @@ enum Commands {
         languages: String,
         /// The bucket you wish to upload to
         bucket: String,
-        /// The bucket encryption algorithm for the S3 bucket
-        #[clap(default_value = "aws:kms")]
-        sse_algorithm: String,
     },
 }
 
@@ -86,14 +83,17 @@ fn main() {
 
     match &cli.command {
         Commands::Hash { path } => {
-            CliResult::new(hash_file(path.clone()), ExitCode::HashFailed).print_or_exit(format);
+            CliResult::new(hash_file(path.clone()), FailureExitCode::Hash).print_or_exit(format);
         }
         Commands::Login { uri, token } => {
-            CliResult::new(auth_store::set(uri, token), ExitCode::SetAuthTokenFailed).exit();
+            CliResult::new(auth_store::set(uri, token), FailureExitCode::SetAuthToken).exit();
         }
         Commands::CheckHash { uri, hash } => {
-            CliResult::new(giant_api::check_hash_exists(uri, hash), ExitCode::ApiFailed)
-                .print_or_exit(format);
+            CliResult::new(
+                giant_api::check_hash_exists(uri, hash),
+                FailureExitCode::Api,
+            )
+            .print_or_exit(format);
         }
         Commands::CheckFile { uri, path } => {
             let file_exists = (|| {
@@ -101,7 +101,7 @@ fn main() {
                 giant_api::check_hash_exists(uri, &hash.hash)
             })();
 
-            CliResult::new(file_exists, ExitCode::ApiFailed).print_or_exit(format);
+            CliResult::new(file_exists, FailureExitCode::Api).print_or_exit(format);
         }
         Commands::Ingest {
             uri,
@@ -109,7 +109,6 @@ fn main() {
             path,
             languages,
             bucket,
-            sse_algorithm,
         } => {
             // I'm sure we can do better than this.
             let languages: Vec<Language> = languages
@@ -141,7 +140,7 @@ fn main() {
                 })
             })();
 
-            CliResult::new(result, ExitCode::UploadFailed).print_or_exit(format);
+            CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
         }
     }
 }
