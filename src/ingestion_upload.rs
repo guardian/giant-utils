@@ -3,17 +3,26 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use chrono::Utc;
 use futures::{stream, StreamExt};
 use humantime::format_duration;
 use indicatif::ProgressBar;
-use tokio::sync::mpsc;
+use tokio::{
+    io::{AsyncWriteExt, BufWriter},
+    sync::mpsc,
+};
 use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::{
     model::{
-        cli_error::CliError, file_metadata::FileMetadata, ingestion_file::IngestionFile,
-        lang::Language, log_message::LogMessage, uri::Uri,
+        cli_error::CliError,
+        cli_output::OutputFormat,
+        file_metadata::FileMetadata,
+        ingestion_file::IngestionFile,
+        lang::Language,
+        log_message::{FailureStage, LogMessage},
+        uri::Uri,
     },
     services::s3_client::S3Client,
 };
@@ -23,12 +32,37 @@ pub async fn ingestion_upload(
     languages: &Vec<Language>,
     path: impl AsRef<Path>,
     bucket_name: &str,
-    _sse_algorithm: &str,
+    format: &OutputFormat,
 ) -> Result<(), CliError> {
     let s3_client = S3Client::new(bucket_name).await;
 
-    let log_file = tokio::fs::File::create("ingestion.log").await;
-    let (sender, receiver) = mpsc::unbounded_channel::<LogMessage>();
+    let (sender, mut receiver) = mpsc::unbounded_channel::<LogMessage>();
+
+    // Slightly annoying clone so we can move the format into the background worker
+    let format = format.clone();
+    tokio::spawn(async move {
+        let log_name = format!("{}_ingestion.log", Utc::now().to_rfc3339());
+        let log_file = tokio::fs::File::create(log_name)
+            .await
+            .expect("Failed to create log file");
+        let mut writer = BufWriter::new(log_file);
+
+        match format {
+            OutputFormat::JSON => {
+                while let Some(message) = receiver.recv().await {
+                    let buf = message.to_json();
+                    writer.write_all(buf.as_bytes()).await.unwrap();
+                }
+            }
+            OutputFormat::TSV => {
+                while let Some(message) = receiver.recv().await {
+                    let buf = message.to_tsv_row();
+                    writer.write_all(buf.as_bytes()).await.unwrap()
+                }
+            }
+        }
+    });
+
     println!("Counting files");
     // Not ideal to traverse twice but at least this way we are able to measure progress
     // Could experiment with spinning up two threads, one doing total counts and one doing uploads
@@ -61,12 +95,12 @@ pub async fn ingestion_upload(
             let path = &path;
             let languages = &languages;
             let s3_client = &s3_client;
+            let log_sender = sender.clone();
 
             async move {
-                let current_millis = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis();
+                let start = SystemTime::now();
+                let start_millis = start.duration_since(UNIX_EPOCH).unwrap().as_millis();
+
                 let uuid = Uuid::new_v4();
 
                 const DATA_PREFIX: &str = "data";
@@ -74,21 +108,44 @@ pub async fn ingestion_upload(
                 const DATA_SUFFIX: &str = "data";
                 const METADATA_SUFFIX: &str = "metadata.json";
 
+                let file_size = dir.metadata()?.len();
                 let ingestion_file = IngestionFile::from_file(ingestion_uri, &path, &dir).unwrap();
                 let metadata = FileMetadata::new(ingestion_uri, ingestion_file, languages);
                 let metadata_key =
-                    format!("{METADATA_PREFIX}/{current_millis}_{uuid}.{METADATA_SUFFIX}");
+                    format!("{METADATA_PREFIX}/{start_millis}_{uuid}.{METADATA_SUFFIX}");
                 if let Err(e) = s3_client.upload_metadata(&metadata_key, metadata).await {
-                    eprintln!("Oh nO! {}", e);
+                    eprintln!("Failure in ingestion pipeline: {}", e);
+                    log_sender.send(LogMessage::Failure {
+                        path: path.as_ref().to_owned(),
+                        size: file_size,
+                        start_millis,
+                        end_millis: start.duration_since(UNIX_EPOCH).unwrap().as_millis(),
+                        failure_stage: FailureStage::UploadMetadata,
+                        reason: e.to_string(),
+                    })?;
                     pb.inc(1);
                     Err(e)?
                 } else {
-                    let data_key = format!("{DATA_PREFIX}/{current_millis}_{uuid}.{DATA_SUFFIX}");
+                    let data_key = format!("{DATA_PREFIX}/{start_millis}_{uuid}.{DATA_SUFFIX}");
                     if let Err(e) = s3_client.upload_file(&data_key, &dir.path()).await {
-                        eprintln!("Oh nO! {}", e);
+                        eprintln!("Failure in ingestion pipeline: {}", e);
+                        log_sender.send(LogMessage::Failure {
+                            path: path.as_ref().to_owned(),
+                            size: file_size,
+                            start_millis,
+                            end_millis: start.duration_since(UNIX_EPOCH).unwrap().as_millis(),
+                            failure_stage: FailureStage::UploadData,
+                            reason: e.to_string(),
+                        })?;
                         pb.inc(1);
                         Err(e)?
                     } else {
+                        log_sender.send(LogMessage::Success {
+                            path: path.as_ref().to_owned(),
+                            size: file_size,
+                            start_millis,
+                            end_millis: start.duration_since(UNIX_EPOCH).unwrap().as_millis(),
+                        })?;
                         pb.inc(1);
                         Ok(())
                     }

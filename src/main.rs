@@ -137,7 +137,7 @@ fn main() {
                 let rt = Runtime::new()?;
                 rt.block_on(async {
                     // Walk file tree and upload files
-                    ingestion_upload(ingestion_uri, &languages, path, bucket, sse_algorithm).await
+                    ingestion_upload(ingestion_uri, &languages, path, bucket, format).await
                 })
             })();
 
