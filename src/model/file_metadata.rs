@@ -2,7 +2,7 @@
 // graph of disks can be implemented out of order
 // If I was doing this again I don't think this would exist...
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::Serialize;
 
@@ -20,8 +20,8 @@ impl FileMetadata {
     pub fn new(
         ingestion_uri: &Uri,
         file: IngestionFile,
-        languages: &Vec<Language>,
-        path: impl AsRef<Path>,
+        languages: &[Language],
+        _path: impl AsRef<Path>,
     ) -> Self {
         FileMetadata {
             ingestion: ingestion_uri.as_str().to_owned(),

@@ -113,7 +113,7 @@ fn main() {
         } => {
             // I'm sure we can do better than this.
             let languages: Vec<Language> = languages
-                .split(",")
+                .split(',')
                 .map(|l| match l {
                     "english" => Language::English,
                     "french" => Language::French,
@@ -135,12 +135,10 @@ fn main() {
 
                 println!("Starting crawl");
                 let rt = Runtime::new()?;
-                let upload = rt.block_on(async {
+                rt.block_on(async {
                     // Walk file tree and upload files
                     ingestion_upload(ingestion_uri, &languages, path, bucket, sse_algorithm).await
-                });
-
-                upload
+                })
             })();
 
             CliResult::new(result, ExitCode::UploadFailed).print_or_exit(format);
