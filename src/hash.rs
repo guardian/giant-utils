@@ -5,7 +5,7 @@ use std::{
 
 use sha2::{Digest, Sha512};
 
-use crate::{model::{hash_file_output::HashFileOutput, cli_error::CliError}};
+use crate::model::{cli_error::CliError, hash_file_output::HashFileOutput};
 
 pub fn hash_file(path: String) -> Result<HashFileOutput, CliError> {
     let f = File::open(&path)?;

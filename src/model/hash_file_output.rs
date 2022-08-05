@@ -10,8 +10,6 @@ pub struct HashFileOutput {
 
 impl HashFileOutput {
     pub fn new(hash: String, path: String) -> Self {
-        HashFileOutput {
-            hash, path
-        }
+        HashFileOutput { hash, path }
     }
 }

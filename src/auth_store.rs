@@ -1,6 +1,7 @@
 use std::{
-    io::{ Read, Write},
-    fs::{File, self}, path::PathBuf
+    fs::{self, File},
+    io::{Read, Write},
+    path::PathBuf,
 };
 
 use urlencoding::encode;
@@ -24,7 +25,10 @@ fn get_path(uri: &str) -> Result<PathBuf, CliError> {
 
 pub fn get(uri: &str) -> Result<String, CliError> {
     let path = get_path(uri)?;
-    let mut file = File::open(path)?;
+    let mut file = File::open(path).map_err(|e| {
+        eprintln!("Could not open auth file, have you logged in before?");
+        e
+    })?;
 
     let mut token = String::new();
     file.read_to_string(&mut token)?;
@@ -32,7 +36,7 @@ pub fn get(uri: &str) -> Result<String, CliError> {
     Ok(token)
 }
 
-pub fn set(uri: &str, token: &str) -> Result<(), CliError>{
+pub fn set(uri: &str, token: &str) -> Result<(), CliError> {
     let path = get_path(uri)?;
     let mut file = File::create(path)?;
 
