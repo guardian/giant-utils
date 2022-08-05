@@ -1,8 +1,16 @@
+use std::{ops::Deref, path::PathBuf};
+
 use reqwest::{blocking::Client, header::HeaderMap, StatusCode};
 
 use crate::{
     auth_store::{self},
-    model::{cli_error::CliError, uri::Uri, forms::create_collection::CreateCollection, collection::Collection},
+    model::{
+        cli_error::CliError,
+        collection::Collection,
+        forms::{create_collection::CreateCollection, create_ingestion::CreateIngestion},
+        lang::Language,
+        uri::Uri,
+    },
 };
 
 pub fn get_client(uri: &str) -> Result<Client, CliError> {
@@ -31,26 +39,6 @@ pub fn check_hash_exists(uri: &str, hash: &str) -> Result<bool, CliError> {
     }
 }
 
-// pub fn check_ingestion_exists(uri: &str, id: &Uri) -> Result<bool, CliError> {
-//     let collection = id.collection();
-//     let mut url = String::from(uri);
-//     url.push_str("/api/collections/");
-//     url.push_str(collection);
-
-//     let client = get_client(uri)?;
-
-//     let res = client.get(url).send()?;
-//     let status = res.status();
-
-//     if status == 401 {
-//         Err(CliError::APIAuthError)
-//     } else {
-//         let status = res.status();
-//         println!("{}",res.text().unwrap());
-//         Ok(status == 200)
-//     }
-// }
-
 pub fn get_or_insert_collection(uri: &str, ingestion_uri: &Uri) -> Result<Collection, CliError> {
     let collection = ingestion_uri.collection();
     let url = format!("{uri}/api/collections/{collection}");
@@ -59,26 +47,67 @@ pub fn get_or_insert_collection(uri: &str, ingestion_uri: &Uri) -> Result<Collec
 
     let res = client.get(url).send()?;
     let status = res.status();
-    
+
     if status == StatusCode::UNAUTHORIZED {
         return Err(CliError::APIAuthError);
-    } 
+    }
 
     if status == StatusCode::NOT_FOUND {
         // Insert collection
-       let create_collection = CreateCollection { name: collection.to_owned() };
-       let url = format!("{uri}/api/collections");
-       let res = client.post(url).json(&create_collection).send()?;
-       let status = res.status();
+        let create_collection = CreateCollection {
+            name: collection.to_owned(),
+        };
+        let url = format!("{uri}/api/collections");
+        let res = client.post(url).json(&create_collection).send()?;
+        let status = res.status();
 
-       if status == StatusCode::UNAUTHORIZED {
-        return Err(CliError::APIAuthError);
+        if status == StatusCode::UNAUTHORIZED {
+            return Err(CliError::APIAuthError);
         } else if status != StatusCode::CREATED {
             return Err(CliError::UnexpectedResponse(status));
         }
         Ok(res.json::<Collection>()?)
-        }
-    else {
+    } else {
         Ok(res.json::<Collection>()?)
+    }
+}
+
+pub fn get_or_insert_ingestion(
+    uri: &str,
+    ingestion_uri: &Uri,
+    base_collection: &Collection,
+    path: PathBuf,
+    languages: Vec<Language>,
+) -> Result<(), CliError> {
+    let collection = ingestion_uri.collection();
+    let ingestion = ingestion_uri.ingestion();
+
+    if base_collection
+        .ingestions
+        .iter()
+        .any(|i| i.uri == ingestion_uri.as_str())
+    {
+        // collection already contains ingestion!
+        Ok(())
+    } else {
+        let client = get_client(uri)?;
+        let url = format!("{uri}/api/collections/{collection}");
+
+        let create_ingestion = CreateIngestion {
+            path: Some(path),
+            name: Some(ingestion.to_owned()),
+            languages: languages,
+            fixed: Some(false), // This is hardcoded to false in the existing CLI
+            default: Some(false),
+        };
+
+        let res = client.post(url).json(&create_ingestion).send()?;
+        let status = res.status();
+
+        if status == StatusCode::OK {
+            Ok(())
+        } else {
+            Err(CliError::UnexpectedResponse(status))
+        }
     }
 }

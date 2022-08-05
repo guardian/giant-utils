@@ -19,3 +19,13 @@ reflection = "0.1.1"
 reflection_derive = "0.1.1"
 urlencoding = "2.1.0"
 regex = "1.6.0"
+walkdir = "2.3.2"
+futures = "0.3.21"
+anyhow = "1.0.59"
+aws-config = "0.46.0"
+aws-sdk-s3 = "0.16.0"
+tokio = { version = "1.20.1", features = ["full"] }
+indicatif = "0.17.0"
+uuid = { version = "1.1.2", features = ["v4"] }
+chrono = { version = "0.4.20", features = ["serde"] }
+aws-smithy-http = "0.46.0"

@@ -4,4 +4,5 @@ pub enum ExitCode {
     SetAuthTokenFailed = 2,
     ApiFailed = 3,
     SerializationFailed = 4,
+    UploadFailed = 5,
 }
