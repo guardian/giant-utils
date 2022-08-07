@@ -11,6 +11,7 @@ use model::{
     lang::Language,
     uri::Uri,
 };
+use progress_reader::{empty_progress_reader, progress_reader_from_path};
 use tokio::runtime::Runtime;
 
 use crate::giant_api::get_or_insert_ingestion;
@@ -20,6 +21,7 @@ mod giant_api;
 mod hash;
 mod ingestion_upload;
 mod model;
+mod progress_reader;
 mod services;
 
 #[derive(Parser)]
@@ -73,6 +75,9 @@ enum Commands {
         languages: String,
         /// The bucket you wish to upload to
         bucket: String,
+        /// Continue from a previous ingestion using its log
+        #[clap(short, long)]
+        progress_from: Option<PathBuf>,
     },
 }
 
@@ -109,6 +114,7 @@ fn main() {
             path,
             languages,
             bucket,
+            progress_from,
         } => {
             // I'm sure we can do better than this.
             let languages: Vec<Language> = languages
@@ -121,6 +127,11 @@ fn main() {
                 .collect();
 
             let result: Result<(), CliError> = (|| {
+                let progress_reader = match progress_from {
+                    Some(path) => progress_reader_from_path(path)?,
+                    None => empty_progress_reader(),
+                };
+
                 let ingestion_uri = Uri::parse(ingestion_uri)?;
                 let collection = get_or_insert_collection(uri, &ingestion_uri)?;
                 println!("Checking ingestion");
@@ -136,7 +147,15 @@ fn main() {
                 let rt = Runtime::new()?;
                 rt.block_on(async {
                     // Walk file tree and upload files
-                    ingestion_upload(ingestion_uri, &languages, path, bucket, format).await
+                    ingestion_upload(
+                        ingestion_uri,
+                        &languages,
+                        path,
+                        bucket,
+                        progress_reader,
+                        format,
+                    )
+                    .await
                 })
             })();
 

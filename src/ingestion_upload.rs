@@ -24,6 +24,7 @@ use crate::{
         log_message::{FailureStage, LogMessage},
         uri::Uri,
     },
+    progress_reader::ProgressReader,
     services::s3_client::S3Client,
 };
 
@@ -32,6 +33,7 @@ pub async fn ingestion_upload(
     languages: &Vec<Language>,
     path: impl AsRef<Path>,
     bucket_name: &str,
+    progress_reader: ProgressReader,
     format: &OutputFormat,
 ) -> Result<(), CliError> {
     let s3_client = S3Client::new(bucket_name).await;
@@ -41,7 +43,12 @@ pub async fn ingestion_upload(
     // Slightly annoying clone so we can move the format into the background worker
     let format = format.clone();
     tokio::spawn(async move {
-        let log_name = format!("{}_ingestion.log", Utc::now().to_rfc3339());
+        let log_name = format!(
+            "{}_ingestion.{}",
+            Utc::now().to_rfc3339(),
+            format.to_extension()
+        );
+
         let log_file = tokio::fs::File::create(log_name)
             .await
             .expect("Failed to create log file");
@@ -96,58 +103,73 @@ pub async fn ingestion_upload(
             let languages = &languages;
             let s3_client = &s3_client;
             let log_sender = sender.clone();
+            let progress_guard = progress_reader.guard();
 
             async move {
                 let start = SystemTime::now();
                 let start_millis = start.duration_since(UNIX_EPOCH).unwrap().as_millis();
-
-                let uuid = Uuid::new_v4();
-
-                const DATA_PREFIX: &str = "data";
-                const METADATA_PREFIX: &str = "metadata";
-                const DATA_SUFFIX: &str = "data";
-                const METADATA_SUFFIX: &str = "metadata.json";
-
                 let file_size = dir.metadata()?.len();
-                let ingestion_file = IngestionFile::from_file(ingestion_uri, &path, &dir).unwrap();
-                let metadata = FileMetadata::new(ingestion_uri, ingestion_file, languages);
-                let metadata_key =
-                    format!("{METADATA_PREFIX}/{start_millis}_{uuid}.{METADATA_SUFFIX}");
-                if let Err(e) = s3_client.upload_metadata(&metadata_key, metadata).await {
-                    eprintln!("Failure in ingestion pipeline: {}", e);
-                    log_sender.send(LogMessage::Failure {
+
+                if progress_guard.contains_key(dir.path()) {
+                    // The file has already been processed, skip over it
+                    log_sender.send(LogMessage::Success {
                         path: path.as_ref().to_owned(),
                         size: file_size,
                         start_millis,
                         end_millis: start.duration_since(UNIX_EPOCH).unwrap().as_millis(),
-                        failure_stage: FailureStage::UploadMetadata,
-                        reason: e.to_string(),
                     })?;
                     pb.inc(1);
-                    Err(e)?
+                    Ok(())
                 } else {
-                    let data_key = format!("{DATA_PREFIX}/{start_millis}_{uuid}.{DATA_SUFFIX}");
-                    if let Err(e) = s3_client.upload_file(&data_key, &dir.path()).await {
+                    let uuid = Uuid::new_v4();
+
+                    const DATA_PREFIX: &str = "data";
+                    const METADATA_PREFIX: &str = "metadata";
+                    const DATA_SUFFIX: &str = "data";
+                    const METADATA_SUFFIX: &str = "metadata.json";
+
+                    let file_size = dir.metadata()?.len();
+                    let ingestion_file =
+                        IngestionFile::from_file(ingestion_uri, &path, &dir).unwrap();
+                    let metadata = FileMetadata::new(ingestion_uri, ingestion_file, languages);
+                    let metadata_key =
+                        format!("{METADATA_PREFIX}/{start_millis}_{uuid}.{METADATA_SUFFIX}");
+                    if let Err(e) = s3_client.upload_metadata(&metadata_key, metadata).await {
                         eprintln!("Failure in ingestion pipeline: {}", e);
                         log_sender.send(LogMessage::Failure {
                             path: path.as_ref().to_owned(),
                             size: file_size,
                             start_millis,
                             end_millis: start.duration_since(UNIX_EPOCH).unwrap().as_millis(),
-                            failure_stage: FailureStage::UploadData,
+                            failure_stage: FailureStage::UploadMetadata,
                             reason: e.to_string(),
                         })?;
                         pb.inc(1);
                         Err(e)?
                     } else {
-                        log_sender.send(LogMessage::Success {
-                            path: path.as_ref().to_owned(),
-                            size: file_size,
-                            start_millis,
-                            end_millis: start.duration_since(UNIX_EPOCH).unwrap().as_millis(),
-                        })?;
-                        pb.inc(1);
-                        Ok(())
+                        let data_key = format!("{DATA_PREFIX}/{start_millis}_{uuid}.{DATA_SUFFIX}");
+                        if let Err(e) = s3_client.upload_file(&data_key, &dir.path()).await {
+                            eprintln!("Failure in ingestion pipeline: {}", e);
+                            log_sender.send(LogMessage::Failure {
+                                path: path.as_ref().to_owned(),
+                                size: file_size,
+                                start_millis,
+                                end_millis: start.duration_since(UNIX_EPOCH).unwrap().as_millis(),
+                                failure_stage: FailureStage::UploadData,
+                                reason: e.to_string(),
+                            })?;
+                            pb.inc(1);
+                            Err(e)?
+                        } else {
+                            log_sender.send(LogMessage::Success {
+                                path: path.as_ref().to_owned(),
+                                size: file_size,
+                                start_millis,
+                                end_millis: start.duration_since(UNIX_EPOCH).unwrap().as_millis(),
+                            })?;
+                            pb.inc(1);
+                            Ok(())
+                        }
                     }
                 }
             }

@@ -21,4 +21,6 @@ pub enum CliError {
     UnexpectedResponse(StatusCode),
     #[error("Error while uploading to S3")]
     IngestionUploadError(#[from] Box<SdkError<PutObjectError, Response>>),
+    #[error("JSON error")]
+    JsonError(#[from] serde_json::Error),
 }

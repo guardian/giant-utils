@@ -66,7 +66,7 @@ impl LogMessage {
                 end_millis: end_epoch,
             } => {
                 format!(
-                    "success\t{}\t{}\t{}\t{}\t\n",
+                    "success\t{}\t{}\t{}\t{}\t\t\n",
                     path.display(),
                     size,
                     start_epoch,

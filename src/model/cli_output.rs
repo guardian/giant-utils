@@ -3,6 +3,7 @@ use std::error::Error;
 use clap::ValueEnum;
 use reflection::Reflection;
 use serde::Serialize;
+use sha2::digest::Output;
 use tsv::Config;
 
 use super::exit_code::FailureExitCode;
@@ -11,6 +12,15 @@ use super::exit_code::FailureExitCode;
 pub enum OutputFormat {
     Tsv,
     Json,
+}
+
+impl OutputFormat {
+    pub fn to_extension(&self) -> &'static str {
+        match self {
+            Self::Json => "ndjson",
+            Self::Tsv => "tsv",
+        }
+    }
 }
 
 pub struct CliResult<T: Serialize + Reflection, E: Error> {
