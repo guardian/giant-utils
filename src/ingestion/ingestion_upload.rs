@@ -15,6 +15,7 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::{
+    ingestion::progress_reader::ProgressReader,
     model::{
         cli_error::CliError,
         cli_output::OutputFormat,
@@ -24,7 +25,6 @@ use crate::{
         log_message::{FailureStage, LogMessage},
         uri::Uri,
     },
-    progress_reader::ProgressReader,
     services::s3_client::S3Client,
 };
 

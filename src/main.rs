@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use giant_api::get_or_insert_collection;
 use hash::hash_file;
-use ingestion_upload::ingestion_upload;
+use ingestion::{
+    ingestion_upload::ingestion_upload,
+    progress_reader::{empty_progress_reader, progress_reader_from_path},
+};
 use model::{
     cli_error::CliError,
     cli_output::{CliResult, OutputFormat},
@@ -11,17 +13,13 @@ use model::{
     lang::Language,
     uri::Uri,
 };
-use progress_reader::{empty_progress_reader, progress_reader_from_path};
+use services::giant_api;
 use tokio::runtime::Runtime;
 
-use crate::giant_api::get_or_insert_ingestion;
-
 mod auth_store;
-mod giant_api;
 mod hash;
-mod ingestion_upload;
+mod ingestion;
 mod model;
-mod progress_reader;
 mod services;
 
 #[derive(Parser)]
@@ -137,9 +135,10 @@ fn main() {
                 };
 
                 let ingestion_uri = Uri::parse(ingestion_uri)?;
-                let collection = get_or_insert_collection(uri, &ingestion_uri)?;
+                let collection = giant_api::get_or_insert_collection(uri, &ingestion_uri)?;
+
                 println!("Checking ingestion");
-                get_or_insert_ingestion(
+                giant_api::get_or_insert_ingestion(
                     uri,
                     &ingestion_uri,
                     &collection,
