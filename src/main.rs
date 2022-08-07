@@ -120,8 +120,12 @@ fn main() {
             let languages: Vec<Language> = languages
                 .split(',')
                 .map(|l| match l {
+                    "arabic" => Language::Arabic,
                     "english" => Language::English,
                     "french" => Language::French,
+                    "german" => Language::German,
+                    "portuguese" => Language::Portuguese,
+                    "russian" => Language::Russian,
                     _ => panic!("Invalid language!"),
                 })
                 .collect();
