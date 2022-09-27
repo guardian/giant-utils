@@ -69,7 +69,7 @@ enum Commands {
         ingestion_uri: String,
         /// The base path for your upload
         path: PathBuf,
-        /// A comma sepearted list of the languages in the files
+        /// A comma-separated list of the languages in the files
         languages: String,
         /// The bucket you wish to upload to
         bucket: String,
