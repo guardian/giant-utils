@@ -9,7 +9,6 @@ pub struct Blob {
     pub ingestion: Vec<String>,
 }
 
-// TODO: Do I need all of these?
 #[derive(Deserialize)]
 pub struct BlobResp {
     pub blobs: Vec<Blob>
