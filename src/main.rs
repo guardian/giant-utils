@@ -33,6 +33,13 @@ struct Cli {
     format: OutputFormat,
 }
 
+#[derive(clap::ValueEnum, Clone, Debug)]
+enum ConflictBehaviour {
+    Skip,
+    Delete,
+    Stop,
+}
+
 #[derive(Subcommand)]
 enum Commands {
     /// Hash a file at the path provided to produce a Giant ID
@@ -77,6 +84,18 @@ enum Commands {
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
     },
+    /// Delete a collection
+    Delete {
+        /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
+        uri: String,
+        /// The collection you want to delete, e.g. "Pandora Papers"
+        collection: String,
+        /// What to do when a blob in the ingest is also included in another ingest.
+        /// Valid options: delete, skip, stop.
+        /// Note that if you select 'delete' the blob will be deleted from all ingestions in giant.
+        #[clap(arg_enum)]
+        conflict_behaviour: ConflictBehaviour
+    }
 }
 
 fn main() {
@@ -163,6 +182,13 @@ fn main() {
             })();
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
+        }
+        Commands::Delete {
+            uri,
+            collection,
+            conflict_behaviour
+        } => {
+            println!("Delete! uri is {}, collection is {}, conflict_behaviour is {:?}", uri, collection, conflict_behaviour)
         }
     }
 }
