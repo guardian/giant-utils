@@ -7,6 +7,7 @@ use serde::Serialize;
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct Uri(String);
 
+// TODO: rename? or rename the uri property of the blob struct? the dual use is a bit confusing
 impl Uri {
     pub fn parse(uri: &str) -> Result<Uri, CliError> {
         let regex = Regex::new(r"[^\n^/.]+/([^\n^/.]+/?)+").unwrap();

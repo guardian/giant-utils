@@ -12,6 +12,9 @@ use crate::{
         uri::Uri,
     },
 };
+use crate::model::blob::{Blob, BlobResp};
+
+use urlencoding::encode;
 
 pub fn get_client(uri: &str) -> Result<Client, CliError> {
     let auth_token = auth_store::get(uri)?;
@@ -72,6 +75,7 @@ pub fn get_or_insert_collection(uri: &str, ingestion_uri: &Uri) -> Result<Collec
     }
 }
 
+// Why does this not return anything (esp given that get_or_insert_collection does)?
 pub fn get_or_insert_ingestion(
     uri: &str,
     ingestion_uri: &Uri,
@@ -109,5 +113,25 @@ pub fn get_or_insert_ingestion(
         } else {
             Err(CliError::UnexpectedResponse(status))
         }
+    }
+}
+
+pub fn get_blobs_in_collection(
+    uri: &str,
+    collection: &str
+) -> Result<Vec<Blob>, CliError> {
+    let client = get_client(uri)?;
+    let encoded_collection = encode(collection);
+    let url = format!("{uri}/api/blobs?collection={encoded_collection}");
+
+    let res = client.get(url).send()?;
+
+    let status = res.status();
+
+    if status == StatusCode::OK {
+        let resp = res.json::<BlobResp>()?;
+        Ok(resp.blobs)
+    } else {
+        Err(CliError::UnexpectedResponse(status))
     }
 }
