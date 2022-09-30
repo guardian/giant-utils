@@ -3,7 +3,6 @@ use std::error::Error;
 use clap::ValueEnum;
 use reflection::Reflection;
 use serde::Serialize;
-use sha2::digest::Output;
 use tsv::Config;
 
 use super::exit_code::FailureExitCode;
