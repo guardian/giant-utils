@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use reqwest::{blocking::Client, header::HeaderMap, StatusCode};
 
+use crate::model::blob::{Blob, BlobResp};
 use crate::{
     auth_store::{self},
     model::{
@@ -12,7 +13,6 @@ use crate::{
         uri::Uri,
     },
 };
-use crate::model::blob::{Blob, BlobResp};
 
 use urlencoding::encode;
 
@@ -116,10 +116,7 @@ pub fn get_or_insert_ingestion(
     }
 }
 
-pub fn get_blobs_in_collection(
-    uri: &str,
-    collection: &str
-) -> Result<Vec<Blob>, CliError> {
+pub fn get_blobs_in_collection(uri: &str, collection: &str) -> Result<Vec<Blob>, CliError> {
     let client = get_client(uri)?;
     let encoded_collection = encode(collection);
     let url = format!("{uri}/api/blobs?collection={encoded_collection}");

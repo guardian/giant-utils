@@ -1,3 +1,4 @@
+pub mod blob;
 pub mod cli_error;
 pub mod cli_output;
 pub mod collection;
@@ -10,5 +11,3 @@ pub mod ingestion_file;
 pub mod lang;
 pub mod log_message;
 pub mod uri;
-pub mod blob;
-

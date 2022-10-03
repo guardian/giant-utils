@@ -82,8 +82,8 @@ enum Commands {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
         uri: String,
         /// The collection whose blobs you want to list, e.g. "Pandora Papers"
-        collection: String
-    }
+        collection: String,
+    },
 }
 
 fn main() {
@@ -171,10 +171,7 @@ fn main() {
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
         }
-        Commands::ListBlobs {
-            uri,
-            collection,
-        } => {
+        Commands::ListBlobs { uri, collection } => {
             let blobs = giant_api::get_blobs_in_collection(uri, collection);
             // TODO: just output the URIs and not the ingestions? would be more usable for piping into other commands
             CliResult::new(blobs, FailureExitCode::Api).print_or_exit(format);

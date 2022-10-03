@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader},
-    path::{Path, PathBuf}
+    path::{Path, PathBuf},
 };
 
 use flashmap::{self, ReadHandle};
