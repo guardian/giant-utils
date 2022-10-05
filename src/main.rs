@@ -173,7 +173,6 @@ fn main() {
         }
         Commands::ListBlobs { uri, collection } => {
             let blobs = giant_api::get_blobs_in_collection(uri, collection);
-            // TODO: just output the URIs and not the ingestions? would be more usable for piping into other commands
             CliResult::new(blobs, FailureExitCode::Api).print_or_exit(format);
         }
     }

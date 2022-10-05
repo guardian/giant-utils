@@ -7,7 +7,6 @@ use serde::Serialize;
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct Uri(String);
 
-// TODO: rename? or rename the uri property of the blob struct? the dual use is a bit confusing
 impl Uri {
     pub fn parse(uri: &str) -> Result<Uri, CliError> {
         let regex = Regex::new(r"[^\n^/.]+/([^\n^/.]+/?)+").unwrap();
@@ -52,5 +51,46 @@ impl Uri {
 impl From<&str> for Uri {
     fn from(s: &str) -> Self {
         Uri(s.to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // This is more restrictive than it should be to represent
+    // all Giant URIs, as collection, blob and email URIs can be of depth 1.
+    fn rejects_collection_uri() {
+        let uri = "collection";
+        let parsed_uri = Uri::parse(uri);
+        assert!(
+            matches!(parsed_uri, Err(_)),
+            "Checking if '{}' parsing is Ok(()), was {:?} ",
+            uri,
+            parsed_uri
+        );
+    }
+
+    fn accepts_ingestion_uri() {
+        let uri = "collection/ingestion";
+        let parsed_uri = Uri::parse(uri);
+        assert!(
+            matches!(parsed_uri, Ok(_)),
+            "Checking if '{}' parsing is Ok(()), was {:?} ",
+            uri,
+            parsed_uri
+        );
+    }
+
+    fn accepts_file_uri() {
+        let uri = "collection/ingestion/directory/file";
+        let parsed_uri = Uri::parse(uri);
+        assert!(
+            matches!(parsed_uri, Ok(_)),
+            "Checking if '{}' parsing is Ok(()), was {:?} ",
+            uri,
+            parsed_uri
+        );
     }
 }
