@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Reflection)]
 pub struct Blob {
     pub uri: String,
-    // TODO: change Giant API to pluralise this since it clearly returns an array
-    pub ingestion: Vec<String>,
+    #[serde(rename = "ingestion")]
+    pub ingestions: Vec<String>,
 }
 
 #[derive(Deserialize)]
