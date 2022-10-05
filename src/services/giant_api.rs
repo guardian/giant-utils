@@ -75,7 +75,6 @@ pub fn get_or_insert_collection(uri: &str, ingestion_uri: &Uri) -> Result<Collec
     }
 }
 
-// Why does this not return anything (esp given that get_or_insert_collection does)?
 pub fn get_or_insert_ingestion(
     uri: &str,
     ingestion_uri: &Uri,
