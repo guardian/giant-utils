@@ -1,9 +1,7 @@
 use std::{
-    ffi::OsStr,
     fs::File,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
-    ptr::write_unaligned,
 };
 
 use flashmap::{self, ReadHandle};

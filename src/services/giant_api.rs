@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use reqwest::{blocking::Client, header::HeaderMap, StatusCode};
 
+use crate::model::blob::{Blob, BlobResp};
 use crate::{
     auth_store::{self},
     model::{
@@ -12,6 +13,8 @@ use crate::{
         uri::Uri,
     },
 };
+
+use urlencoding::encode;
 
 pub fn get_client(uri: &str) -> Result<Client, CliError> {
     let auth_token = auth_store::get(uri)?;
@@ -109,5 +112,23 @@ pub fn get_or_insert_ingestion(
         } else {
             Err(CliError::UnexpectedResponse(status))
         }
+    }
+}
+
+// Returns a maximum of 500 results
+pub fn get_blobs_in_collection(uri: &str, collection: &str) -> Result<Vec<Blob>, CliError> {
+    let client = get_client(uri)?;
+    let encoded_collection = encode(collection);
+    let url = format!("{uri}/api/blobs?collection={encoded_collection}");
+
+    let res = client.get(url).send()?;
+
+    let status = res.status();
+
+    if status == StatusCode::OK {
+        let resp = res.json::<BlobResp>()?;
+        Ok(resp.blobs)
+    } else {
+        Err(CliError::UnexpectedResponse(status))
     }
 }

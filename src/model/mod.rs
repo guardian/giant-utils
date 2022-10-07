@@ -1,3 +1,4 @@
+pub mod blob;
 pub mod cli_error;
 pub mod cli_output;
 pub mod collection;

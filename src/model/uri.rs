@@ -53,3 +53,44 @@ impl From<&str> for Uri {
         Uri(s.to_owned())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // This is more restrictive than it should be to represent
+    // all Giant URIs, as collection, blob and email URIs can be of depth 1.
+    fn rejects_collection_uri() {
+        let uri = "collection";
+        let parsed_uri = Uri::parse(uri);
+        assert!(
+            matches!(parsed_uri, Err(_)),
+            "Checking if '{}' parsing is Ok(()), was {:?} ",
+            uri,
+            parsed_uri
+        );
+    }
+
+    fn accepts_ingestion_uri() {
+        let uri = "collection/ingestion";
+        let parsed_uri = Uri::parse(uri);
+        assert!(
+            matches!(parsed_uri, Ok(_)),
+            "Checking if '{}' parsing is Ok(()), was {:?} ",
+            uri,
+            parsed_uri
+        );
+    }
+
+    fn accepts_file_uri() {
+        let uri = "collection/ingestion/directory/file";
+        let parsed_uri = Uri::parse(uri);
+        assert!(
+            matches!(parsed_uri, Ok(_)),
+            "Checking if '{}' parsing is Ok(()), was {:?} ",
+            uri,
+            parsed_uri
+        );
+    }
+}
