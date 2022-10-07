@@ -16,8 +16,8 @@ use crate::{
 
 use urlencoding::encode;
 
-pub fn get_client(uri: &str) -> Result<Client, CliError> {
-    let auth_token = auth_store::get(uri)?;
+pub fn get_client(giant_uri: &str) -> Result<Client, CliError> {
+    let auth_token = auth_store::get(giant_uri)?;
     let mut headers = HeaderMap::new();
     headers.insert("Authorization", auth_token.parse()?);
 
@@ -115,11 +115,11 @@ pub fn get_or_insert_ingestion(
     }
 }
 
-// Returns a maximum of 500 results
-pub fn get_blobs_in_collection(uri: &str, collection: &str) -> Result<Vec<Blob>, CliError> {
-    let client = get_client(uri)?;
+// Returns a maximum of 500 blobs per request
+pub fn get_blobs_in_collection(giant_uri: &str, collection: &str) -> Result<Vec<Blob>, CliError> {
+    let client = get_client(giant_uri)?;
     let encoded_collection = encode(collection);
-    let url = format!("{uri}/api/blobs?collection={encoded_collection}");
+    let url = format!("{giant_uri}/api/blobs?collection={encoded_collection}");
 
     let res = client.get(url).send()?;
 
