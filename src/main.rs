@@ -77,13 +77,6 @@ enum Commands {
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
     },
-    /// List the blobs in a collection
-    ListBlobs {
-        /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        uri: String,
-        /// The collection whose blobs you want to list, e.g. "Pandora Papers"
-        collection: String,
-    },
 }
 
 fn main() {
@@ -170,10 +163,6 @@ fn main() {
             })();
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
-        }
-        Commands::ListBlobs { uri, collection } => {
-            let blobs = giant_api::get_blobs_in_collection(uri, collection);
-            CliResult::new(blobs, FailureExitCode::Api).print_or_exit(format);
         }
     }
 }

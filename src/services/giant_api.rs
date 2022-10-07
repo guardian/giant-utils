@@ -115,6 +115,7 @@ pub fn get_or_insert_ingestion(
     }
 }
 
+// Returns a maximum of 500 results
 pub fn get_blobs_in_collection(uri: &str, collection: &str) -> Result<Vec<Blob>, CliError> {
     let client = get_client(uri)?;
     let encoded_collection = encode(collection);
