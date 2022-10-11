@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
@@ -13,6 +14,7 @@ use model::{
     lang::Language,
     uri::Uri,
 };
+use itertools::Itertools;
 use services::giant_api;
 use tokio::runtime::Runtime;
 
@@ -76,6 +78,13 @@ enum Commands {
         /// Continue from a previous ingestion using its log
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
+    },
+    /// List the blobs in a collection
+    DeleteCollection {
+        /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
+        giant_uri: String,
+        /// The collection you want to delete
+        collection: String,
     },
 }
 
@@ -163,6 +172,50 @@ fn main() {
             })();
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
+        }
+        Commands::DeleteCollection { giant_uri, collection } => {
+            let result: Result<(), CliError> = (|| {
+                // Returns a maximum of 500 results,
+                // so we need to loop until we've deleted them all.
+                let mut blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
+
+                while !blobs.is_empty() {
+                    for blob in blobs {
+                        // TODO: use a HashSet
+                        // TODO: implement skip/stop/delete logic
+                        println!("Ingestions: {:?}", blob.ingestions);
+
+                        let collections: Vec<String> = blob.ingestions
+                            .into_iter()
+                            .map(|i| Uri::parse(&i).unwrap().collection().to_owned())
+                            .unique()
+                            .collect();
+
+                        println!("Collections: {:?}", collections);
+
+                        let other_collections: Vec<String> = collections
+                            .into_iter()
+                            .filter(|c| c != collection)
+                            .collect();
+
+                        println!("Other collections: {:?}", other_collections);
+
+                        if other_collections.is_empty() {
+                            println!("Deleting blob {}", blob.uri);
+                            giant_api::delete_blob(giant_uri, &blob.uri)?;
+                            println!("Deleted blob {}", blob.uri);
+                        } else {
+                            println!("Skipping blob {} because it exists in other collections: {:?}", blob.uri, other_collections);
+                        }
+                    }
+                    blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
+                }
+
+                // TODO: delete collection!
+                return Ok(())
+            })();
+
+            CliResult::new(result, FailureExitCode::Api).print_or_exit(format);
         }
     }
 }

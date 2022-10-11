@@ -132,3 +132,26 @@ pub fn get_blobs_in_collection(giant_uri: &str, collection: &str) -> Result<Vec<
         Err(CliError::UnexpectedResponse(status))
     }
 }
+
+pub fn delete_blob(giant_uri: &str, blob_uri: &str) -> Result<(), CliError> {
+    // TODO QUESTION: is it wasteful to keep getting this client over and over?
+    let client = get_client(giant_uri)?;
+
+    let encoded_blob_uri = encode(blob_uri);
+
+    // We don't pass deleteFolders=true because we eventually delete
+    // the whole ingestion, which should delete the containing file.
+    // HOWEVER: what about workspaces that point to this blob? It leaves dead workspace nodes.
+    // TODO: remove deleteFolders param from Giant API
+    let url = format!("{giant_uri}/api/blobs/{encoded_blob_uri}?deleteFolders=true&checkChildren=false");
+
+    let res = client.delete(url).send()?;
+
+    let status = res.status();
+
+    if status == StatusCode::NO_CONTENT {
+        Ok(())
+    } else {
+        Err(CliError::UnexpectedResponse(status))
+    }
+}
