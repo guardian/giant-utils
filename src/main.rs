@@ -179,12 +179,12 @@ fn main() {
                 // so we need to loop until we've deleted them all.
                 let mut blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
 
+                // TODO IMPORTANT: we need to keep track of skipped blobs, because otherwise we may never exit this loop
                 while !blobs.is_empty() {
                     for blob in blobs {
-                        // TODO: use a HashSet
-                        // TODO: implement skip/stop/delete logic
                         println!("Ingestions: {:?}", blob.ingestions);
 
+                        // TODO: use a HashSet
                         let collections: Vec<String> = blob.ingestions
                             .into_iter()
                             .map(|i| Uri::parse(&i).unwrap().collection().to_owned())
@@ -205,13 +205,18 @@ fn main() {
                             giant_api::delete_blob(giant_uri, &blob.uri)?;
                             println!("Deleted blob {}", blob.uri);
                         } else {
+                            // TODO: implement skip/stop/delete logic
                             println!("Skipping blob {} because it exists in other collections: {:?}", blob.uri, other_collections);
                         }
                     }
                     blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
                 }
 
-                // TODO: delete collection!
+                // TODO IMPORTANT: don't delete the collection if there were skipped blobs
+                println!("Deleting collection {}", collection);
+                giant_api::delete_collection(giant_uri, collection)?;
+                println!("Deleted collection {}", collection);
+
                 return Ok(())
             })();
 

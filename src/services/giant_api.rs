@@ -155,3 +155,17 @@ pub fn delete_blob(giant_uri: &str, blob_uri: &str) -> Result<(), CliError> {
         Err(CliError::UnexpectedResponse(status))
     }
 }
+
+pub fn delete_collection(giant_uri: &str, collection: &str) -> Result<(), CliError> {
+    let client = get_client(giant_uri)?;
+    let encoded_collection = encode(collection);
+    let url = format!("{giant_uri}/api/collections/{encoded_collection}");
+    let res = client.delete(url).send()?;
+    let status = res.status();
+
+    if status == StatusCode::NO_CONTENT {
+        Ok(())
+    } else {
+        Err(CliError::UnexpectedResponse(status))
+    }
+}
