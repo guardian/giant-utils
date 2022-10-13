@@ -7,6 +7,7 @@ use ingestion::{
     ingestion_upload::ingestion_upload,
     progress_reader::{empty_progress_reader, progress_reader_from_path},
 };
+use itertools::Itertools;
 use model::{
     cli_error::CliError,
     cli_output::{CliResult, OutputFormat},
@@ -14,7 +15,6 @@ use model::{
     lang::Language,
     uri::Uri,
 };
-use itertools::Itertools;
 use services::giant_api;
 use tokio::runtime::Runtime;
 
@@ -98,7 +98,11 @@ fn main() {
             CliResult::new(hash_file(path.clone()), FailureExitCode::Hash).print_or_exit(format);
         }
         Commands::Login { giant_uri, token } => {
-            CliResult::new(auth_store::set(giant_uri, token), FailureExitCode::SetAuthToken).exit();
+            CliResult::new(
+                auth_store::set(giant_uri, token),
+                FailureExitCode::SetAuthToken,
+            )
+            .exit();
         }
         Commands::CheckHash { giant_uri, hash } => {
             CliResult::new(
@@ -173,7 +177,10 @@ fn main() {
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
         }
-        Commands::DeleteCollection { giant_uri, collection } => {
+        Commands::DeleteCollection {
+            giant_uri,
+            collection,
+        } => {
             let result: Result<(), CliError> = (|| {
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
@@ -190,7 +197,10 @@ fn main() {
                             .collect();
 
                         if !other_collections.is_empty() {
-                            println!("Blob {} exists in other collections, will also delete from: {:?}", blob.uri, other_collections);
+                            println!(
+                                "Blob {} exists in other collections, will also delete from: {:?}",
+                                blob.uri, other_collections
+                            );
                         }
                         println!("Deleting blob {}", blob.uri);
                         giant_api::delete_blob(giant_uri, &blob.uri)?;
@@ -203,7 +213,7 @@ fn main() {
                 giant_api::delete_collection(giant_uri, collection)?;
                 println!("Deleted collection {}", collection);
 
-                return Ok(())
+                return Ok(());
             })();
 
             CliResult::new(result, FailureExitCode::Api).print_or_exit(format);
