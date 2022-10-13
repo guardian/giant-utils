@@ -200,14 +200,12 @@ fn main() {
 
                         println!("Other collections: {:?}", other_collections);
 
-                        if other_collections.is_empty() {
-                            println!("Deleting blob {}", blob.uri);
-                            giant_api::delete_blob(giant_uri, &blob.uri)?;
-                            println!("Deleted blob {}", blob.uri);
-                        } else {
-                            // TODO: implement skip/stop/delete logic
-                            println!("Skipping blob {} because it exists in other collections: {:?}", blob.uri, other_collections);
+                        if !other_collections.is_empty() {
+                            println!("Blob {} exists in other collections, will also delete from: {:?}", blob.uri, other_collections);
                         }
+                        println!("Deleting blob {}", blob.uri);
+                        giant_api::delete_blob(giant_uri, &blob.uri)?;
+                        println!("Deleted blob {}", blob.uri);
                     }
                     blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
                 }
