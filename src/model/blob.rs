@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Reflection)]
 pub struct Blob {
     pub uri: String,
-    #[serde(rename = "ingestion")]
     pub ingestions: Vec<String>,
+    pub collections: Vec<String>,
 }
 
 #[derive(Deserialize)]
