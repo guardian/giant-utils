@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use reqwest::{blocking::Client, header::HeaderMap, StatusCode};
 
 use crate::model::blob::{Blob, BlobResp};
-use crate::{auth_store::{self}, ListBlobsFilter, model::{
+use crate::{auth_store::{self}, model::{
     cli_error::CliError,
     collection::Collection,
     forms::{create_collection::CreateCollection, create_ingestion::CreateIngestion},
@@ -11,7 +11,15 @@ use crate::{auth_store::{self}, ListBlobsFilter, model::{
     uri::Uri,
 }};
 
+use clap::ValueEnum;
+
 use urlencoding::encode;
+
+#[derive(ValueEnum, Clone)]
+pub enum ListBlobsFilter {
+    All,
+    InMultiple,
+}
 
 pub fn get_client(giant_uri: &str) -> Result<Client, CliError> {
     let auth_token = auth_store::get(giant_uri)?;
@@ -118,12 +126,10 @@ pub fn get_blobs_in_collection(giant_uri: &str, collection: &str, filter: &ListB
     let encoded_collection = encode(collection);
     let in_multiple = match filter {
         ListBlobsFilter::All => "",
-        ListBlobsFilter::InMultiple => "&in_multiple=true"
+        ListBlobsFilter::InMultiple => "&inMultiple=true"
     };
     let url = format!("{giant_uri}/api/blobs?collection={encoded_collection}{in_multiple}");
-
     let res = client.get(url).send()?;
-
     let status = res.status();
 
     if status == StatusCode::OK {

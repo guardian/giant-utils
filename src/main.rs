@@ -15,6 +15,7 @@ use model::{
 };
 use services::giant_api;
 use tokio::runtime::Runtime;
+use crate::giant_api::ListBlobsFilter;
 
 mod auth_store;
 mod hash;
@@ -31,12 +32,6 @@ struct Cli {
     /// Set the output format
     #[clap(arg_enum, short, long, default_value_t=OutputFormat::Tsv)]
     format: OutputFormat,
-}
-
-#[derive(ValueEnum, Clone)]
-pub enum ListBlobsFilter {
-    All,
-    InMultiple,
 }
 
 #[derive(Subcommand)]
@@ -234,7 +229,7 @@ fn main() {
                         giant_api::delete_blob(giant_uri, &blob.uri)?;
                         println!("Deleted blob {}", blob.uri);
                     }
-                    blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
+                    blobs = giant_api::get_blobs_in_collection(giant_uri, collection, &ListBlobsFilter::All)?;
                 }
 
                 println!("Deleting collection {}", collection);
