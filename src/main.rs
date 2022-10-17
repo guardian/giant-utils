@@ -211,7 +211,7 @@ fn main() {
                 giant_api::delete_collection(giant_uri, collection)?;
                 println!("Deleted collection {}", collection);
 
-                return Ok(());
+                Ok(())
             })();
 
             CliResult::new(result, FailureExitCode::Api).print_or_exit(format);
