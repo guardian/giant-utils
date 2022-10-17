@@ -77,7 +77,7 @@ enum Commands {
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
     },
-    /// List the blobs in a collection
+    /// Delete a collection and all its contents
     DeleteCollection {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
         giant_uri: String,
