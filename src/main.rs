@@ -43,28 +43,28 @@ enum Commands {
     /// Login to the Giant instance at the provided URI with an auth token
     Login {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        uri: String,
+        giant_uri: String,
         /// Your auth token, found on the about page
         token: String,
     },
     /// Check if the provided hash is in Giant, and you have permission to see it
     CheckHash {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        uri: String,
+        giant_uri: String,
         /// The resource hash you wish to check exists in Giant
         hash: String,
     },
     /// Check if the provided file is in Giant, and you have permission to see it
     CheckFile {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        uri: String,
+        giant_uri: String,
         /// The path to the file on your local disk
         path: String,
     },
     /// Upload all files in a directory to Giant
     Ingest {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        uri: String,
+        giant_uri: String,
         /// The ingestion URI for your upload, in the form "collection/ingestion"
         ingestion_uri: String,
         /// The base path for your upload
@@ -77,6 +77,13 @@ enum Commands {
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
     },
+    /// Delete a collection and all its contents
+    DeleteCollection {
+        /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
+        giant_uri: String,
+        /// The collection you want to delete
+        collection: String,
+    },
 }
 
 fn main() {
@@ -88,26 +95,30 @@ fn main() {
         Commands::Hash { path } => {
             CliResult::new(hash_file(path.clone()), FailureExitCode::Hash).print_or_exit(format);
         }
-        Commands::Login { uri, token } => {
-            CliResult::new(auth_store::set(uri, token), FailureExitCode::SetAuthToken).exit();
-        }
-        Commands::CheckHash { uri, hash } => {
+        Commands::Login { giant_uri, token } => {
             CliResult::new(
-                giant_api::check_hash_exists(uri, hash),
+                auth_store::set(giant_uri, token),
+                FailureExitCode::SetAuthToken,
+            )
+            .exit();
+        }
+        Commands::CheckHash { giant_uri, hash } => {
+            CliResult::new(
+                giant_api::check_hash_exists(giant_uri, hash),
                 FailureExitCode::Api,
             )
             .print_or_exit(format);
         }
-        Commands::CheckFile { uri, path } => {
+        Commands::CheckFile { giant_uri, path } => {
             let file_exists = (|| {
                 let hash = hash_file(path.clone())?;
-                giant_api::check_hash_exists(uri, &hash.hash)
+                giant_api::check_hash_exists(giant_uri, &hash.hash)
             })();
 
             CliResult::new(file_exists, FailureExitCode::Api).print_or_exit(format);
         }
         Commands::Ingest {
-            uri,
+            giant_uri,
             ingestion_uri,
             path,
             languages,
@@ -135,11 +146,11 @@ fn main() {
                 };
 
                 let ingestion_uri = Uri::parse(ingestion_uri)?;
-                let collection = giant_api::get_or_insert_collection(uri, &ingestion_uri)?;
+                let collection = giant_api::get_or_insert_collection(giant_uri, &ingestion_uri)?;
 
                 println!("Checking ingestion");
                 giant_api::get_or_insert_ingestion(
-                    uri,
+                    giant_uri,
                     &ingestion_uri,
                     &collection,
                     path.to_path_buf(),
@@ -163,6 +174,47 @@ fn main() {
             })();
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
+        }
+        Commands::DeleteCollection {
+            giant_uri,
+            collection,
+        } => {
+            let result: Result<(), CliError> = (|| {
+                // Returns a maximum of 500 results,
+                // so we need to loop until we've deleted them all.
+                let mut blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
+
+                while !blobs.is_empty() {
+                    for blob in blobs {
+                        println!("Blob is in collections: {:?}", blob.collections);
+
+                        let other_collections: Vec<String> = blob
+                            .collections
+                            .into_iter()
+                            .filter(|c| c != collection)
+                            .collect();
+
+                        if !other_collections.is_empty() {
+                            println!(
+                                "Blob {} exists in other collections, will also delete from: {:?}",
+                                blob.uri, other_collections
+                            );
+                        }
+                        println!("Deleting blob {}", blob.uri);
+                        giant_api::delete_blob(giant_uri, &blob.uri)?;
+                        println!("Deleted blob {}", blob.uri);
+                    }
+                    blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
+                }
+
+                println!("Deleting collection {}", collection);
+                giant_api::delete_collection(giant_uri, collection)?;
+                println!("Deleted collection {}", collection);
+
+                Ok(())
+            })();
+
+            CliResult::new(result, FailureExitCode::Api).print_or_exit(format);
         }
     }
 }
