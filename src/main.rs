@@ -188,7 +188,8 @@ fn main() {
                     for blob in blobs {
                         println!("Blob is in collections: {:?}", blob.collections);
 
-                        let other_collections: Vec<String> = blob.collections
+                        let other_collections: Vec<String> = blob
+                            .collections
                             .into_iter()
                             .filter(|c| c != collection)
                             .collect();
