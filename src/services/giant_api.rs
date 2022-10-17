@@ -3,13 +3,16 @@ use std::path::PathBuf;
 use reqwest::{blocking::Client, header::HeaderMap, StatusCode};
 
 use crate::model::blob::{Blob, BlobResp};
-use crate::{auth_store::{self}, model::{
-    cli_error::CliError,
-    collection::Collection,
-    forms::{create_collection::CreateCollection, create_ingestion::CreateIngestion},
-    lang::Language,
-    uri::Uri,
-}};
+use crate::{
+    auth_store::{self},
+    model::{
+        cli_error::CliError,
+        collection::Collection,
+        forms::{create_collection::CreateCollection, create_ingestion::CreateIngestion},
+        lang::Language,
+        uri::Uri,
+    },
+};
 
 use clap::ValueEnum;
 
@@ -121,12 +124,16 @@ pub fn get_or_insert_ingestion(
 }
 
 // Returns a maximum of 500 blobs per request
-pub fn get_blobs_in_collection(giant_uri: &str, collection: &str, filter: &ListBlobsFilter) -> Result<Vec<Blob>, CliError> {
+pub fn get_blobs_in_collection(
+    giant_uri: &str,
+    collection: &str,
+    filter: &ListBlobsFilter,
+) -> Result<Vec<Blob>, CliError> {
     let client = get_client(giant_uri)?;
     let encoded_collection = encode(collection);
     let in_multiple = match filter {
         ListBlobsFilter::All => "",
-        ListBlobsFilter::InMultiple => "&inMultiple=true"
+        ListBlobsFilter::InMultiple => "&inMultiple=true",
     };
     let url = format!("{giant_uri}/api/blobs?collection={encoded_collection}{in_multiple}");
     let res = client.get(url).send()?;

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::giant_api::ListBlobsFilter;
 use clap::{Parser, Subcommand};
 use hash::hash_file;
 use ingestion::{
@@ -15,7 +16,6 @@ use model::{
 };
 use services::giant_api;
 use tokio::runtime::Runtime;
-use crate::giant_api::ListBlobsFilter;
 
 mod auth_store;
 mod hash;
@@ -88,7 +88,7 @@ enum Commands {
         /// List all blobs, or filter to only those that also exist in collections other
         /// than the one you are listing.
         #[clap(arg_enum, short, long, default_value_t=ListBlobsFilter::All)]
-        filter: ListBlobsFilter
+        filter: ListBlobsFilter,
     },
     /// Delete a collection and all its contents
     DeleteCollection {
@@ -193,12 +193,13 @@ fn main() {
         Commands::ListBlobs {
             giant_uri,
             collection,
-            filter
+            filter,
         } => {
             CliResult::new(
                 giant_api::get_blobs_in_collection(giant_uri, collection, filter),
-                FailureExitCode::Api
-            ).print_or_exit(format);
+                FailureExitCode::Api,
+            )
+            .print_or_exit(format);
         }
         Commands::DeleteCollection {
             giant_uri,
@@ -207,7 +208,11 @@ fn main() {
             let result: Result<(), CliError> = (|| {
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
-                let mut blobs = giant_api::get_blobs_in_collection(giant_uri, collection, &ListBlobsFilter::All)?;
+                let mut blobs = giant_api::get_blobs_in_collection(
+                    giant_uri,
+                    collection,
+                    &ListBlobsFilter::All,
+                )?;
 
                 while !blobs.is_empty() {
                     for blob in blobs {
@@ -229,7 +234,11 @@ fn main() {
                         giant_api::delete_blob(giant_uri, &blob.uri)?;
                         println!("Deleted blob {}", blob.uri);
                     }
-                    blobs = giant_api::get_blobs_in_collection(giant_uri, collection, &ListBlobsFilter::All)?;
+                    blobs = giant_api::get_blobs_in_collection(
+                        giant_uri,
+                        collection,
+                        &ListBlobsFilter::All,
+                    )?;
                 }
 
                 println!("Deleting collection {}", collection);
