@@ -31,4 +31,3 @@ chrono = { version = "0.4.20", features = ["serde"] }
 aws-smithy-http = "0.46.0"
 humantime = "2.1.0"
 flashmap = "0.1.0"
-itertools = "0.10.5"

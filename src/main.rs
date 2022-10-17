@@ -7,7 +7,6 @@ use ingestion::{
     ingestion_upload::ingestion_upload,
     progress_reader::{empty_progress_reader, progress_reader_from_path},
 };
-use itertools::Itertools;
 use model::{
     cli_error::CliError,
     cli_output::{CliResult, OutputFormat},
