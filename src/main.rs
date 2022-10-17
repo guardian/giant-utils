@@ -189,7 +189,6 @@ fn main() {
                     for blob in blobs {
                         println!("Blob is in collections: {:?}", blob.collections);
 
-                        // TODO: would HashSet be more efficient here?
                         let other_collections: Vec<String> = blob.collections
                             .into_iter()
                             .filter(|c| c != collection)
