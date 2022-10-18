@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use reqwest::{blocking::Client, header::HeaderMap, StatusCode};
 
-use crate::model::blob::{Blob, BlobResp};
+use crate::model::blob::{Blob, BlobResp, CountResp};
 use crate::{
     auth_store::{self},
     model::{
@@ -142,6 +142,30 @@ pub fn get_blobs_in_collection(
     if status == StatusCode::OK {
         let resp = res.json::<BlobResp>()?;
         Ok(resp.blobs)
+    } else {
+        Err(CliError::UnexpectedResponse(status))
+    }
+}
+
+// TODO: identical to above, probably factor out
+pub fn count_blobs_in_collection(
+    giant_uri: &str,
+    collection: &str,
+    filter: &ListBlobsFilter,
+) -> Result<u64, CliError> {
+    let client = get_client(giant_uri)?;
+    let encoded_collection = encode(collection);
+    let in_multiple = match filter {
+        ListBlobsFilter::All => "",
+        ListBlobsFilter::InMultiple => "&inMultiple=true",
+    };
+    let url = format!("{giant_uri}/api/blobs/count?collection={encoded_collection}{in_multiple}");
+    let res = client.get(url).send()?;
+    let status = res.status();
+
+    if status == StatusCode::OK {
+        let resp = res.json::<CountResp>()?;
+        Ok(resp.count)
     } else {
         Err(CliError::UnexpectedResponse(status))
     }

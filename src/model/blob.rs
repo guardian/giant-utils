@@ -13,3 +13,8 @@ pub struct Blob {
 pub struct BlobResp {
     pub blobs: Vec<Blob>,
 }
+
+#[derive(Deserialize)]
+pub struct CountResp {
+    pub count: u64,
+}
