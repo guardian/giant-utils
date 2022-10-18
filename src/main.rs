@@ -78,6 +78,17 @@ enum Commands {
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
     },
+    /// Return a total count of the blobs in a collection.
+    CountBlobs {
+        /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
+        giant_uri: String,
+        /// The collection whose blobs you want to list
+        collection: String,
+        /// List all blobs, or filter to only those that also exist in collections other
+        /// than the one you are listing.
+        #[clap(arg_enum, short, long, default_value_t=ListBlobsFilter::All)]
+        filter: ListBlobsFilter,
+    },
     /// List the blobs in a collection.
     /// **Currently only lists up to 500 blobs**
     ListBlobs {
@@ -187,6 +198,19 @@ fn main() {
             })();
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
+        }
+        // Currently this command will only list up to 500 blobs,
+        // due to restrictions in the Giant API.
+        Commands::CountBlobs {
+            giant_uri,
+            collection,
+            filter,
+        } => {
+            CliResult::new(
+                giant_api::count_blobs_in_collection(giant_uri, collection, filter),
+                FailureExitCode::Api,
+            )
+            .print_or_exit(format);
         }
         // Currently this command will only list up to 500 blobs,
         // due to restrictions in the Giant API.
