@@ -14,7 +14,15 @@ use crate::{
     },
 };
 
+use clap::ValueEnum;
+
 use urlencoding::encode;
+
+#[derive(ValueEnum, Clone)]
+pub enum ListBlobsFilter {
+    All,
+    InMultiple,
+}
 
 pub fn get_client(giant_uri: &str) -> Result<Client, CliError> {
     let auth_token = auth_store::get(giant_uri)?;
@@ -116,13 +124,19 @@ pub fn get_or_insert_ingestion(
 }
 
 // Returns a maximum of 500 blobs per request
-pub fn get_blobs_in_collection(giant_uri: &str, collection: &str) -> Result<Vec<Blob>, CliError> {
+pub fn get_blobs_in_collection(
+    giant_uri: &str,
+    collection: &str,
+    filter: &ListBlobsFilter,
+) -> Result<Vec<Blob>, CliError> {
     let client = get_client(giant_uri)?;
     let encoded_collection = encode(collection);
-    let url = format!("{giant_uri}/api/blobs?collection={encoded_collection}");
-
+    let in_multiple = match filter {
+        ListBlobsFilter::All => "",
+        ListBlobsFilter::InMultiple => "&inMultiple=true",
+    };
+    let url = format!("{giant_uri}/api/blobs?collection={encoded_collection}{in_multiple}");
     let res = client.get(url).send()?;
-
     let status = res.status();
 
     if status == StatusCode::OK {

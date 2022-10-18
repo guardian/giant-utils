@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::giant_api::ListBlobsFilter;
 use clap::{Parser, Subcommand};
 use hash::hash_file;
 use ingestion::{
@@ -76,6 +77,18 @@ enum Commands {
         /// Continue from a previous ingestion using its log
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
+    },
+    /// List the blobs in a collection.
+    /// **Currently only lists up to 500 blobs**
+    ListBlobs {
+        /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
+        giant_uri: String,
+        /// The collection whose blobs you want to list
+        collection: String,
+        /// List all blobs, or filter to only those that also exist in collections other
+        /// than the one you are listing.
+        #[clap(arg_enum, short, long, default_value_t=ListBlobsFilter::All)]
+        filter: ListBlobsFilter,
     },
     /// Delete a collection and all its contents
     DeleteCollection {
@@ -175,6 +188,19 @@ fn main() {
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
         }
+        // Currently this command will only list up to 500 blobs,
+        // due to restrictions in the Giant API.
+        Commands::ListBlobs {
+            giant_uri,
+            collection,
+            filter,
+        } => {
+            CliResult::new(
+                giant_api::get_blobs_in_collection(giant_uri, collection, filter),
+                FailureExitCode::Api,
+            )
+            .print_or_exit(format);
+        }
         Commands::DeleteCollection {
             giant_uri,
             collection,
@@ -182,7 +208,11 @@ fn main() {
             let result: Result<(), CliError> = (|| {
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
-                let mut blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
+                let mut blobs = giant_api::get_blobs_in_collection(
+                    giant_uri,
+                    collection,
+                    &ListBlobsFilter::All,
+                )?;
 
                 while !blobs.is_empty() {
                     for blob in blobs {
@@ -204,7 +234,11 @@ fn main() {
                         giant_api::delete_blob(giant_uri, &blob.uri)?;
                         println!("Deleted blob {}", blob.uri);
                     }
-                    blobs = giant_api::get_blobs_in_collection(giant_uri, collection)?;
+                    blobs = giant_api::get_blobs_in_collection(
+                        giant_uri,
+                        collection,
+                        &ListBlobsFilter::All,
+                    )?;
                 }
 
                 println!("Deleting collection {}", collection);
