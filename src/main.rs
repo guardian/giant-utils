@@ -210,7 +210,7 @@ fn main() {
                 giant_api::count_blobs_in_collection(giant_uri, collection, filter),
                 FailureExitCode::Api,
             )
-                .print_or_exit(format);
+            .print_or_exit(format);
         }
         // Currently this command will only list up to 500 blobs,
         // due to restrictions in the Giant API.
