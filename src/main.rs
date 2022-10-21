@@ -117,7 +117,7 @@ fn main() {
             .exit();
         }
         Commands::CheckHash { giant_uri, hash } => {
-            let client = GiantApiClient::new(giant_uri.clone());
+            let mut client = GiantApiClient::new(giant_uri.clone());
             CliResult::new(
                 client.check_hash_exists(hash),
                 FailureExitCode::Api,
@@ -125,7 +125,7 @@ fn main() {
             .print_or_exit(format);
         }
         Commands::CheckFile { giant_uri, path } => {
-            let client = GiantApiClient::new(giant_uri.clone());
+            let mut client = GiantApiClient::new(giant_uri.clone());
             let file_exists = (|| {
                 let hash = hash_file(path.clone())?;
                 client.check_hash_exists(&hash.hash)

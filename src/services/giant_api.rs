@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use clap::ValueEnum;
-use reqwest::{blocking::Client, header::HeaderMap, StatusCode, Url};
+use reqwest::{blocking::Client, Error, header::HeaderMap, Method, StatusCode, Url};
+use reqwest::blocking::Response;
 
 use crate::{
     auth_store::{self},
@@ -30,6 +31,7 @@ impl GiantApiClient {
     pub fn new(base_url: Url) -> Self {
         Self {
             client: {
+                // TODO: perhaps don't unwrap here, best to propagate to top-level
                 let auth_token = auth_store::get(base_url.as_str()).unwrap();
                 let mut headers = HeaderMap::new();
                 headers.insert("Authorization", auth_token.parse().unwrap());
@@ -39,7 +41,23 @@ impl GiantApiClient {
         }
     }
 
-    pub fn check_hash_exists(&self, hash: &str) -> Result<bool, CliError> {
+    fn request(&mut self, method: Method, url: Url) -> std::result::Result<reqwest::blocking::Response, reqwest::Error> {
+        let resp = self.client.request(method, url).send()?;
+        let authResponseHeader = resp.headers().get("X-Offer-Authorization");
+
+        authResponseHeader.map(|token| {
+            // TODO: something safer than .unwrap()?
+            let t = token.to_str().unwrap();
+            auth_store::set(self.base_url.as_str(), t);
+            let mut headers = HeaderMap::new();
+            headers.insert("Authorization", token.clone());
+            self.client = Client::builder().default_headers(headers).build().unwrap();
+        });
+
+        Ok(resp)
+    }
+
+    pub fn check_hash_exists(&mut self, hash: &str) -> Result<bool, CliError> {
         let mut url = self.base_url.clone();
 
         url.path_segments_mut()
@@ -51,7 +69,7 @@ impl GiantApiClient {
         url.query_pairs_mut()
             .append_pair("basic", "true");
 
-        let res = self.client.get(url).send()?;
+        let res = self.request(Method::GET, url)?;
         let status = res.status();
 
         if status == 401 {
