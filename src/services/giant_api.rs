@@ -81,7 +81,7 @@ impl GiantApiClient {
         }
     }
 
-    pub fn get_or_insert_collection(&self, ingestion_uri: &Uri) -> Result<Collection, CliError> {
+    pub fn get_or_insert_collection(&mut self, ingestion_uri: &Uri) -> Result<Collection, CliError> {
         let collection = ingestion_uri.collection();
 
         let mut collections_url = self.base_url.clone();
@@ -93,7 +93,7 @@ impl GiantApiClient {
         let mut collection_url = collections_url.clone();
         collection_url.path_segments_mut().unwrap().push(collection);
 
-        let res = self.client.get(collection_url).send()?;
+        let res = self.request(Method::GET, collection_url)?;
         let status = res.status();
 
         if status == StatusCode::UNAUTHORIZED {
@@ -166,7 +166,7 @@ impl GiantApiClient {
 
     // Returns a maximum of 500 blobs per request
     pub fn get_blobs_in_collection(
-        &self,
+        &mut self,
         collection: &str,
         filter: &ListBlobsFilter,
     ) -> Result<Vec<Blob>, CliError> {
@@ -183,7 +183,7 @@ impl GiantApiClient {
         url.query_pairs_mut().append_pair("inMultiple", in_multiple);
         url.query_pairs_mut().append_pair("collection", collection);
 
-        let res = self.client.get(url).send()?;
+        let res = self.request(Method::GET, url)?;
         let status = res.status();
 
         if status == StatusCode::OK {

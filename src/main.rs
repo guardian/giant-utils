@@ -141,7 +141,7 @@ fn main() {
             bucket,
             progress_from,
         } => {
-            let client = GiantApiClient::new(giant_uri.clone());
+            let mut client = GiantApiClient::new(giant_uri.clone());
 
             // I'm sure we can do better than this.
             let languages: Vec<Language> = languages
@@ -199,7 +199,7 @@ fn main() {
             collection,
             filter,
         } => {
-            let client = GiantApiClient::new(giant_uri.clone());
+            let mut client = GiantApiClient::new(giant_uri.clone());
             CliResult::new(
                 client.get_blobs_in_collection(collection, filter),
                 FailureExitCode::Api,
@@ -210,7 +210,7 @@ fn main() {
             giant_uri,
             collection,
         } => {
-            let client = GiantApiClient::new(giant_uri.clone());
+            let mut client = GiantApiClient::new(giant_uri.clone());
             let result: Result<(), CliError> = (|| {
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
