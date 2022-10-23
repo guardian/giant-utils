@@ -31,7 +31,6 @@ impl GiantApiClient {
     pub fn new(base_url: Url) -> Self {
         Self {
             client: {
-                // TODO: perhaps don't unwrap here, best to propagate to top-level
                 let auth_token = auth_store::get(base_url.as_str()).unwrap();
                 let mut headers = HeaderMap::new();
                 headers.insert("Authorization", auth_token.parse().unwrap());
@@ -41,18 +40,21 @@ impl GiantApiClient {
         }
     }
 
-    fn request(&mut self, method: Method, url: Url) -> std::result::Result<reqwest::blocking::Response, reqwest::Error> {
+    fn request(&mut self, method: Method, url: Url) -> Result<Response, Error> {
         let resp = self.client.request(method, url).send()?;
-        let authResponseHeader = resp.headers().get("X-Offer-Authorization");
+        let auth_response_header = resp.headers().get("X-Offer-Authorization");
 
-        authResponseHeader.map(|token| {
-            // TODO: something safer than .unwrap()?
-            let t = token.to_str().unwrap();
-            auth_store::set(self.base_url.as_str(), t);
-            let mut headers = HeaderMap::new();
-            headers.insert("Authorization", token.clone());
-            self.client = Client::builder().default_headers(headers).build().unwrap();
-        });
+        match auth_response_header {
+            Some(token_header_value) => {
+                let token = token_header_value.to_str().expect("X-Offer-Authorization should contain only ASCII chars");
+                println!("Giant API returned new token in X-Offer-Authorization header. Refreshing client and auth store");
+                auth_store::set(self.base_url.as_str(), token).unwrap();
+                let mut headers = HeaderMap::new();
+                headers.insert("Authorization", token_header_value.clone());
+                self.client = Client::builder().default_headers(headers).build().unwrap();
+            }
+            None => println!("No X-Offer-Authorization header in response from Giant API")
+        }
 
         Ok(resp)
     }
