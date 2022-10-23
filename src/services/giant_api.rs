@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use clap::ValueEnum;
-use reqwest::{blocking::Client, Error, header::HeaderMap, Method, StatusCode, Url};
-use reqwest::blocking::Response;
+use reqwest::{blocking::Client, Error, header::HeaderMap, StatusCode, Url};
+use reqwest::blocking::{RequestBuilder, Response};
 
 use crate::{
     auth_store::{self},
@@ -40,8 +40,8 @@ impl GiantApiClient {
         }
     }
 
-    fn request(&mut self, method: Method, url: Url) -> Result<Response, Error> {
-        let resp = self.client.request(method, url).send()?;
+    fn send_request(&mut self, request_builder: RequestBuilder) -> Result<Response, Error> {
+        let resp = request_builder.send()?;
         let auth_response_header = resp.headers().get("X-Offer-Authorization");
 
         match auth_response_header {
@@ -71,7 +71,7 @@ impl GiantApiClient {
         url.query_pairs_mut()
             .append_pair("basic", "true");
 
-        let res = self.request(Method::GET, url)?;
+        let res = self.send_request(self.client.get(url))?;
         let status = res.status();
 
         if status == 401 {
@@ -93,7 +93,7 @@ impl GiantApiClient {
         let mut collection_url = collections_url.clone();
         collection_url.path_segments_mut().unwrap().push(collection);
 
-        let res = self.request(Method::GET, collection_url)?;
+        let res = self.send_request(self.client.get(collection_url))?;
         let status = res.status();
 
         if status == StatusCode::UNAUTHORIZED {
@@ -105,7 +105,7 @@ impl GiantApiClient {
             let create_collection = CreateCollection {
                 name: collection.to_owned(),
             };
-            let res = self.client.post(collections_url).json(&create_collection).send()?;
+            let res = self.send_request(self.client.post(collections_url).json(&create_collection))?;
             let status = res.status();
 
             if status == StatusCode::UNAUTHORIZED {
@@ -120,7 +120,7 @@ impl GiantApiClient {
     }
 
     pub fn get_or_insert_ingestion(
-        &self,
+        &mut self,
         ingestion_uri: &Uri,
         base_collection: &Collection,
         path: PathBuf,
@@ -153,7 +153,7 @@ impl GiantApiClient {
                 default: Some(false),
             };
 
-            let res = self.client.post(url).json(&create_ingestion).send()?;
+            let res = self.send_request(self.client.post(url).json(&create_ingestion))?;
             let status = res.status();
 
             if status == StatusCode::OK {
@@ -183,7 +183,7 @@ impl GiantApiClient {
         url.query_pairs_mut().append_pair("inMultiple", in_multiple);
         url.query_pairs_mut().append_pair("collection", collection);
 
-        let res = self.request(Method::GET, url)?;
+        let res = self.send_request(self.client.get(url))?;
         let status = res.status();
 
         if status == StatusCode::OK {
@@ -194,7 +194,7 @@ impl GiantApiClient {
         }
     }
 
-    pub fn delete_blob(&self, blob_uri: &str) -> Result<(), CliError> {
+    pub fn delete_blob(&mut self, blob_uri: &str) -> Result<(), CliError> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap()
             .push("api")
@@ -205,7 +205,7 @@ impl GiantApiClient {
         // children (i.e. because they're archives and contain further files).
         url.query_pairs_mut().append_pair("checkChildren", "false");
 
-        let res = self.client.delete(url).send()?;
+        let res = self.send_request(self.client.delete(url))?;
 
         let status = res.status();
 
@@ -216,14 +216,14 @@ impl GiantApiClient {
         }
     }
 
-    pub fn delete_collection(&self, collection: &str) -> Result<(), CliError> {
+    pub fn delete_collection(&mut self, collection: &str) -> Result<(), CliError> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap()
             .push("api")
             .push("collections")
             .push(collection);
 
-        let res = self.client.delete(url).send()?;
+        let res = self.send_request(self.client.delete(url))?;
         let status = res.status();
 
         if status == StatusCode::NO_CONTENT {
