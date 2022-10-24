@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use clap::ValueEnum;
-use reqwest::blocking::{RequestBuilder, Response};
-use reqwest::{blocking::Client, header::HeaderMap, Error, StatusCode, Url};
+use reqwest::{RequestBuilder, Response};
+use reqwest::{Client, header::HeaderMap, Error, StatusCode, Url};
 
 use crate::model::blob::{Blob, BlobResp};
 use crate::{
@@ -36,8 +36,8 @@ impl GiantApiClient {
         Self { client, base_url }
     }
 
-    fn send_request(&mut self, request_builder: RequestBuilder) -> Result<Response, Error> {
-        let resp = request_builder.send()?;
+    async fn send_request(&mut self, request_builder: RequestBuilder) -> Result<Response, Error> {
+        let resp = request_builder.send().await?;
         let auth_response_header = resp.headers().get("X-Offer-Authorization");
 
         match auth_response_header {
@@ -57,7 +57,7 @@ impl GiantApiClient {
         Ok(resp)
     }
 
-    pub fn check_hash_exists(&mut self, hash: &str) -> Result<bool, CliError> {
+    pub async fn check_hash_exists(&mut self, hash: &str) -> Result<bool, CliError> {
         let mut url = self.base_url.clone();
 
         url.path_segments_mut()
@@ -68,7 +68,7 @@ impl GiantApiClient {
 
         url.query_pairs_mut().append_pair("basic", "true");
 
-        let res = self.send_request(self.client.get(url))?;
+        let res = self.send_request(self.client.get(url)).await?;
         let status = res.status();
 
         if status == 401 {
@@ -78,7 +78,7 @@ impl GiantApiClient {
         }
     }
 
-    pub fn get_or_insert_collection(
+    pub async fn get_or_insert_collection(
         &mut self,
         ingestion_uri: &Uri,
     ) -> Result<Collection, CliError> {
@@ -94,7 +94,7 @@ impl GiantApiClient {
         let mut collection_url = collections_url.clone();
         collection_url.path_segments_mut().unwrap().push(collection);
 
-        let res = self.send_request(self.client.get(collection_url))?;
+        let res = self.send_request(self.client.get(collection_url)).await?;
         let status = res.status();
 
         if status == StatusCode::UNAUTHORIZED {
@@ -107,7 +107,7 @@ impl GiantApiClient {
                 name: collection.to_owned(),
             };
             let res =
-                self.send_request(self.client.post(collections_url).json(&create_collection))?;
+                self.send_request(self.client.post(collections_url).json(&create_collection)).await?;
             let status = res.status();
 
             if status == StatusCode::UNAUTHORIZED {
@@ -115,13 +115,13 @@ impl GiantApiClient {
             } else if status != StatusCode::CREATED {
                 return Err(CliError::UnexpectedResponse(status));
             }
-            Ok(res.json::<Collection>()?)
+            Ok(res.json::<Collection>().await?)
         } else {
-            Ok(res.json::<Collection>()?)
+            Ok(res.json::<Collection>().await?)
         }
     }
 
-    pub fn get_or_insert_ingestion(
+    pub async fn get_or_insert_ingestion(
         &mut self,
         ingestion_uri: &Uri,
         base_collection: &Collection,
@@ -155,7 +155,7 @@ impl GiantApiClient {
                 default: Some(false),
             };
 
-            let res = self.send_request(self.client.post(url).json(&create_ingestion))?;
+            let res = self.send_request(self.client.post(url).json(&create_ingestion)).await?;
             let status = res.status();
 
             if status == StatusCode::OK {
@@ -167,7 +167,7 @@ impl GiantApiClient {
     }
 
     // Returns a maximum of 500 blobs per request
-    pub fn get_blobs_in_collection(
+    pub async fn get_blobs_in_collection(
         &mut self,
         collection: &str,
         filter: &ListBlobsFilter,
@@ -183,18 +183,18 @@ impl GiantApiClient {
         url.query_pairs_mut().append_pair("inMultiple", in_multiple);
         url.query_pairs_mut().append_pair("collection", collection);
 
-        let res = self.send_request(self.client.get(url))?;
+        let res = self.send_request(self.client.get(url)).await?;
         let status = res.status();
 
         if status == StatusCode::OK {
-            let resp = res.json::<BlobResp>()?;
+            let resp = res.json::<BlobResp>().await?;
             Ok(resp.blobs)
         } else {
             Err(CliError::UnexpectedResponse(status))
         }
     }
 
-    pub fn delete_blob(&mut self, blob_uri: &str) -> Result<(), CliError> {
+    pub async fn delete_blob(&mut self, blob_uri: &str) -> Result<(), CliError> {
         let mut url = self.base_url.clone();
         url.path_segments_mut()
             .unwrap()
@@ -206,7 +206,7 @@ impl GiantApiClient {
         // children (i.e. because they're archives and contain further files).
         url.query_pairs_mut().append_pair("checkChildren", "false");
 
-        let res = self.send_request(self.client.delete(url))?;
+        let res = self.send_request(self.client.delete(url)).await?;
 
         let status = res.status();
 
@@ -217,7 +217,7 @@ impl GiantApiClient {
         }
     }
 
-    pub fn delete_collection(&mut self, collection: &str) -> Result<(), CliError> {
+    pub async fn delete_collection(&mut self, collection: &str) -> Result<(), CliError> {
         let mut url = self.base_url.clone();
         url.path_segments_mut()
             .unwrap()
@@ -225,7 +225,7 @@ impl GiantApiClient {
             .push("collections")
             .push(collection);
 
-        let res = self.send_request(self.client.delete(url))?;
+        let res = self.send_request(self.client.delete(url)).await?;
         let status = res.status();
 
         if status == StatusCode::NO_CONTENT {

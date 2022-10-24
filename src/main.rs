@@ -212,7 +212,7 @@ fn main() {
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
                 let mut blobs =
-                    client.get_blobs_in_collection(collection, &ListBlobsFilter::All)?;
+                    client.get_blobs_in_collection(collection, &ListBlobsFilter::All).await?;
 
                 while !blobs.is_empty() {
                     for blob in blobs {
