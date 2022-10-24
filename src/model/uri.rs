@@ -72,6 +72,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn accepts_ingestion_uri() {
         let uri = "collection/ingestion";
         let parsed_uri = Uri::parse(uri);
@@ -83,6 +84,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn accepts_file_uri() {
         let uri = "collection/ingestion/directory/file";
         let parsed_uri = Uri::parse(uri);

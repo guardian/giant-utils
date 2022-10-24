@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::giant_api::ListBlobsFilter;
+use crate::giant_api::{GiantApiClient, ListBlobsFilter};
 use clap::{Parser, Subcommand};
 use hash::hash_file;
 use ingestion::{
@@ -14,6 +14,7 @@ use model::{
     lang::Language,
     uri::Uri,
 };
+use reqwest::Url;
 use services::giant_api;
 use tokio::runtime::Runtime;
 
@@ -44,28 +45,28 @@ enum Commands {
     /// Login to the Giant instance at the provided URI with an auth token
     Login {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        giant_uri: String,
+        giant_uri: Url,
         /// Your auth token, found on the about page
         token: String,
     },
     /// Check if the provided hash is in Giant, and you have permission to see it
     CheckHash {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        giant_uri: String,
+        giant_uri: Url,
         /// The resource hash you wish to check exists in Giant
         hash: String,
     },
     /// Check if the provided file is in Giant, and you have permission to see it
     CheckFile {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        giant_uri: String,
+        giant_uri: Url,
         /// The path to the file on your local disk
         path: String,
     },
     /// Upload all files in a directory to Giant
     Ingest {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        giant_uri: String,
+        giant_uri: Url,
         /// The ingestion URI for your upload, in the form "collection/ingestion"
         ingestion_uri: String,
         /// The base path for your upload
@@ -82,7 +83,7 @@ enum Commands {
     /// **Currently only lists up to 500 blobs**
     ListBlobs {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        giant_uri: String,
+        giant_uri: Url,
         /// The collection whose blobs you want to list
         collection: String,
         /// List all blobs, or filter to only those that also exist in collections other
@@ -93,7 +94,7 @@ enum Commands {
     /// Delete a collection and all its contents
     DeleteCollection {
         /// The URI of your Giant server, e.g. https://playground.pfi.gutools.co.uk
-        giant_uri: String,
+        giant_uri: Url,
         /// The collection you want to delete
         collection: String,
     },
@@ -110,22 +111,21 @@ fn main() {
         }
         Commands::Login { giant_uri, token } => {
             CliResult::new(
-                auth_store::set(giant_uri, token),
+                auth_store::set(giant_uri.as_str(), token),
                 FailureExitCode::SetAuthToken,
             )
             .exit();
         }
         Commands::CheckHash { giant_uri, hash } => {
-            CliResult::new(
-                giant_api::check_hash_exists(giant_uri, hash),
-                FailureExitCode::Api,
-            )
-            .print_or_exit(format);
+            let mut client = GiantApiClient::new(giant_uri.clone());
+            CliResult::new(client.check_hash_exists(hash), FailureExitCode::Api)
+                .print_or_exit(format);
         }
         Commands::CheckFile { giant_uri, path } => {
+            let mut client = GiantApiClient::new(giant_uri.clone());
             let file_exists = (|| {
                 let hash = hash_file(path.clone())?;
-                giant_api::check_hash_exists(giant_uri, &hash.hash)
+                client.check_hash_exists(&hash.hash)
             })();
 
             CliResult::new(file_exists, FailureExitCode::Api).print_or_exit(format);
@@ -138,6 +138,8 @@ fn main() {
             bucket,
             progress_from,
         } => {
+            let mut client = GiantApiClient::new(giant_uri.clone());
+
             // I'm sure we can do better than this.
             let languages: Vec<Language> = languages
                 .split(',')
@@ -159,11 +161,10 @@ fn main() {
                 };
 
                 let ingestion_uri = Uri::parse(ingestion_uri)?;
-                let collection = giant_api::get_or_insert_collection(giant_uri, &ingestion_uri)?;
+                let collection = client.get_or_insert_collection(&ingestion_uri)?;
 
                 println!("Checking ingestion");
-                giant_api::get_or_insert_ingestion(
-                    giant_uri,
+                client.get_or_insert_ingestion(
                     &ingestion_uri,
                     &collection,
                     path.to_path_buf(),
@@ -195,8 +196,9 @@ fn main() {
             collection,
             filter,
         } => {
+            let mut client = GiantApiClient::new(giant_uri.clone());
             CliResult::new(
-                giant_api::get_blobs_in_collection(giant_uri, collection, filter),
+                client.get_blobs_in_collection(collection, filter),
                 FailureExitCode::Api,
             )
             .print_or_exit(format);
@@ -205,14 +207,12 @@ fn main() {
             giant_uri,
             collection,
         } => {
+            let mut client = GiantApiClient::new(giant_uri.clone());
             let result: Result<(), CliError> = (|| {
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
-                let mut blobs = giant_api::get_blobs_in_collection(
-                    giant_uri,
-                    collection,
-                    &ListBlobsFilter::All,
-                )?;
+                let mut blobs =
+                    client.get_blobs_in_collection(collection, &ListBlobsFilter::All)?;
 
                 while !blobs.is_empty() {
                     for blob in blobs {
@@ -231,18 +231,14 @@ fn main() {
                             );
                         }
                         println!("Deleting blob {}", blob.uri);
-                        giant_api::delete_blob(giant_uri, &blob.uri)?;
+                        client.delete_blob(&blob.uri)?;
                         println!("Deleted blob {}", blob.uri);
                     }
-                    blobs = giant_api::get_blobs_in_collection(
-                        giant_uri,
-                        collection,
-                        &ListBlobsFilter::All,
-                    )?;
+                    blobs = client.get_blobs_in_collection(collection, &ListBlobsFilter::All)?;
                 }
 
                 println!("Deleting collection {}", collection);
-                giant_api::delete_collection(giant_uri, collection)?;
+                client.delete_collection(collection)?;
                 println!("Deleted collection {}", collection);
 
                 Ok(())
