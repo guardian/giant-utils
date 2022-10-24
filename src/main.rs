@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use crate::giant_api::{GiantApiClient, ListBlobsFilter};
 use clap::{Parser, Subcommand};
-use reqwest::Url;
 use hash::hash_file;
 use ingestion::{
     ingestion_upload::ingestion_upload,
@@ -15,6 +14,7 @@ use model::{
     lang::Language,
     uri::Uri,
 };
+use reqwest::Url;
 use services::giant_api;
 use tokio::runtime::Runtime;
 
@@ -118,11 +118,8 @@ fn main() {
         }
         Commands::CheckHash { giant_uri, hash } => {
             let mut client = GiantApiClient::new(giant_uri.clone());
-            CliResult::new(
-                client.check_hash_exists(hash),
-                FailureExitCode::Api,
-            )
-            .print_or_exit(format);
+            CliResult::new(client.check_hash_exists(hash), FailureExitCode::Api)
+                .print_or_exit(format);
         }
         Commands::CheckFile { giant_uri, path } => {
             let mut client = GiantApiClient::new(giant_uri.clone());
@@ -214,10 +211,8 @@ fn main() {
             let result: Result<(), CliError> = (|| {
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
-                let mut blobs = client.get_blobs_in_collection(
-                    collection,
-                    &ListBlobsFilter::All,
-                )?;
+                let mut blobs =
+                    client.get_blobs_in_collection(collection, &ListBlobsFilter::All)?;
 
                 while !blobs.is_empty() {
                     for blob in blobs {
@@ -239,10 +234,7 @@ fn main() {
                         client.delete_blob(&blob.uri)?;
                         println!("Deleted blob {}", blob.uri);
                     }
-                    blobs = client.get_blobs_in_collection(
-                        collection,
-                        &ListBlobsFilter::All,
-                    )?;
+                    blobs = client.get_blobs_in_collection(collection, &ListBlobsFilter::All)?;
                 }
 
                 println!("Deleting collection {}", collection);

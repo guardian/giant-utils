@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
 use clap::ValueEnum;
-use reqwest::{blocking::Client, Error, header::HeaderMap, StatusCode, Url};
 use reqwest::blocking::{RequestBuilder, Response};
+use reqwest::{blocking::Client, header::HeaderMap, Error, StatusCode, Url};
 
+use crate::model::blob::{Blob, BlobResp};
 use crate::{
     auth_store::{self},
     model::{
@@ -14,7 +15,6 @@ use crate::{
         uri::Uri,
     },
 };
-use crate::model::blob::{Blob, BlobResp};
 
 #[derive(ValueEnum, Clone)]
 pub enum ListBlobsFilter {
@@ -33,10 +33,7 @@ impl GiantApiClient {
         let mut headers = HeaderMap::new();
         headers.insert("Authorization", auth_token.parse().unwrap());
         let client = Client::builder().default_headers(headers).build().unwrap();
-        Self {
-            client,
-            base_url
-        }
+        Self { client, base_url }
     }
 
     fn send_request(&mut self, request_builder: RequestBuilder) -> Result<Response, Error> {
@@ -45,14 +42,16 @@ impl GiantApiClient {
 
         match auth_response_header {
             Some(token_header_value) => {
-                let token = token_header_value.to_str().expect("X-Offer-Authorization should contain only ASCII chars");
+                let token = token_header_value
+                    .to_str()
+                    .expect("X-Offer-Authorization should contain only ASCII chars");
                 println!("Giant API returned new token in X-Offer-Authorization header. Refreshing client and auth store");
                 auth_store::set(self.base_url.as_str(), token).unwrap();
                 let mut headers = HeaderMap::new();
                 headers.insert("Authorization", token_header_value.clone());
                 self.client = Client::builder().default_headers(headers).build().unwrap();
             }
-            None => println!("No X-Offer-Authorization header in response from Giant API")
+            None => println!("No X-Offer-Authorization header in response from Giant API"),
         }
 
         Ok(resp)
@@ -67,8 +66,7 @@ impl GiantApiClient {
             .push("resources")
             .push(hash);
 
-        url.query_pairs_mut()
-            .append_pair("basic", "true");
+        url.query_pairs_mut().append_pair("basic", "true");
 
         let res = self.send_request(self.client.get(url))?;
         let status = res.status();
@@ -80,11 +78,15 @@ impl GiantApiClient {
         }
     }
 
-    pub fn get_or_insert_collection(&mut self, ingestion_uri: &Uri) -> Result<Collection, CliError> {
+    pub fn get_or_insert_collection(
+        &mut self,
+        ingestion_uri: &Uri,
+    ) -> Result<Collection, CliError> {
         let collection = ingestion_uri.collection();
 
         let mut collections_url = self.base_url.clone();
-        collections_url.path_segments_mut()
+        collections_url
+            .path_segments_mut()
             .unwrap()
             .push("api")
             .push("collections");
@@ -104,7 +106,8 @@ impl GiantApiClient {
             let create_collection = CreateCollection {
                 name: collection.to_owned(),
             };
-            let res = self.send_request(self.client.post(collections_url).json(&create_collection))?;
+            let res =
+                self.send_request(self.client.post(collections_url).json(&create_collection))?;
             let status = res.status();
 
             if status == StatusCode::UNAUTHORIZED {
@@ -170,9 +173,7 @@ impl GiantApiClient {
         filter: &ListBlobsFilter,
     ) -> Result<Vec<Blob>, CliError> {
         let mut url = self.base_url.clone();
-        url.path_segments_mut().unwrap()
-            .push("api")
-            .push("blobs");
+        url.path_segments_mut().unwrap().push("api").push("blobs");
 
         let in_multiple = match filter {
             ListBlobsFilter::InMultiple => "true",
@@ -195,7 +196,8 @@ impl GiantApiClient {
 
     pub fn delete_blob(&mut self, blob_uri: &str) -> Result<(), CliError> {
         let mut url = self.base_url.clone();
-        url.path_segments_mut().unwrap()
+        url.path_segments_mut()
+            .unwrap()
             .push("api")
             .push("blobs")
             .push(blob_uri);
@@ -217,7 +219,8 @@ impl GiantApiClient {
 
     pub fn delete_collection(&mut self, collection: &str) -> Result<(), CliError> {
         let mut url = self.base_url.clone();
-        url.path_segments_mut().unwrap()
+        url.path_segments_mut()
+            .unwrap()
             .push("api")
             .push("collections")
             .push(collection);
