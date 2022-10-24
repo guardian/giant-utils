@@ -16,7 +16,6 @@ use model::{
 };
 use reqwest::Url;
 use services::giant_api;
-use tokio::runtime::Runtime;
 
 mod auth_store;
 mod hash;
@@ -100,7 +99,8 @@ enum Commands {
     },
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     let format = &cli.format;
@@ -118,15 +118,15 @@ fn main() {
         }
         Commands::CheckHash { giant_uri, hash } => {
             let mut client = GiantApiClient::new(giant_uri.clone());
-            CliResult::new(client.check_hash_exists(hash), FailureExitCode::Api)
+            CliResult::new(client.check_hash_exists(hash).await, FailureExitCode::Api)
                 .print_or_exit(format);
         }
         Commands::CheckFile { giant_uri, path } => {
-            let mut client = GiantApiClient::new(giant_uri.clone());
-            let file_exists = (|| {
+            let file_exists = (|| async {
+                let mut client = GiantApiClient::new(giant_uri.clone());
                 let hash = hash_file(path.clone())?;
-                client.check_hash_exists(&hash.hash)
-            })();
+                client.check_hash_exists(&hash.hash).await
+            })().await;
 
             CliResult::new(file_exists, FailureExitCode::Api).print_or_exit(format);
         }
@@ -138,8 +138,6 @@ fn main() {
             bucket,
             progress_from,
         } => {
-            let mut client = GiantApiClient::new(giant_uri.clone());
-
             // I'm sure we can do better than this.
             let languages: Vec<Language> = languages
                 .split(',')
@@ -154,14 +152,15 @@ fn main() {
                 })
                 .collect();
 
-            let result: Result<(), CliError> = (|| {
+            let result: Result<(), CliError> = (|| async {
+                let mut client = GiantApiClient::new(giant_uri.clone());
                 let progress_reader = match progress_from {
                     Some(path) => progress_reader_from_path(path)?,
                     None => empty_progress_reader(),
                 };
 
                 let ingestion_uri = Uri::parse(ingestion_uri)?;
-                let collection = client.get_or_insert_collection(&ingestion_uri)?;
+                let collection = client.get_or_insert_collection(&ingestion_uri).await?;
 
                 println!("Checking ingestion");
                 client.get_or_insert_ingestion(
@@ -169,23 +168,18 @@ fn main() {
                     &collection,
                     path.to_path_buf(),
                     languages.to_vec(),
-                )?;
+                ).await?;
 
                 println!("Starting crawl");
-                let rt = Runtime::new()?;
-                rt.block_on(async {
-                    // Walk file tree and upload files
-                    ingestion_upload(
-                        ingestion_uri,
-                        &languages,
-                        path,
-                        bucket,
-                        progress_reader,
-                        format,
-                    )
-                    .await
-                })
-            })();
+                ingestion_upload(
+                    ingestion_uri,
+                    &languages,
+                    path,
+                    bucket,
+                    progress_reader,
+                    format,
+                ).await
+            })().await;
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
         }
@@ -198,7 +192,7 @@ fn main() {
         } => {
             let mut client = GiantApiClient::new(giant_uri.clone());
             CliResult::new(
-                client.get_blobs_in_collection(collection, filter),
+                client.get_blobs_in_collection(collection, filter).await,
                 FailureExitCode::Api,
             )
             .print_or_exit(format);
@@ -207,12 +201,13 @@ fn main() {
             giant_uri,
             collection,
         } => {
-            let mut client = GiantApiClient::new(giant_uri.clone());
-            let result: Result<(), CliError> = (|| {
+            let result: Result<(), CliError> = (|| async {
+                let mut client = GiantApiClient::new(giant_uri.clone());
+
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
                 let mut blobs =
-                    client.get_blobs_in_collection(collection, &ListBlobsFilter::All)?;
+                    client.get_blobs_in_collection(collection, &ListBlobsFilter::All).await?;
 
                 while !blobs.is_empty() {
                     for blob in blobs {
@@ -231,18 +226,18 @@ fn main() {
                             );
                         }
                         println!("Deleting blob {}", blob.uri);
-                        client.delete_blob(&blob.uri)?;
+                        client.delete_blob(&blob.uri).await?;
                         println!("Deleted blob {}", blob.uri);
                     }
-                    blobs = client.get_blobs_in_collection(collection, &ListBlobsFilter::All)?;
+                    blobs = client.get_blobs_in_collection(collection, &ListBlobsFilter::All).await?;
                 }
 
                 println!("Deleting collection {}", collection);
-                client.delete_collection(collection)?;
+                client.delete_collection(collection).await?;
                 println!("Deleted collection {}", collection);
 
                 Ok(())
-            })();
+            })().await;
 
             CliResult::new(result, FailureExitCode::Api).print_or_exit(format);
         }
