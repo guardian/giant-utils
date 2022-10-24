@@ -29,14 +29,13 @@ pub struct GiantApiClient {
 
 impl GiantApiClient {
     pub fn new(base_url: Url) -> Self {
+        let auth_token = auth_store::get(base_url.as_str()).unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", auth_token.parse().unwrap());
+        let client = Client::builder().default_headers(headers).build().unwrap();
         Self {
-            client: {
-                let auth_token = auth_store::get(base_url.as_str()).unwrap();
-                let mut headers = HeaderMap::new();
-                headers.insert("Authorization", auth_token.parse().unwrap());
-                Client::builder().default_headers(headers).build().unwrap()
-            },
-            base_url,
+            client,
+            base_url
         }
     }
 
