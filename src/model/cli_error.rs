@@ -7,6 +7,9 @@ use thiserror::Error;
 pub enum CliError {
     #[error("IO Error")]
     Io(#[from] std::io::Error),
+    // We need to see the underlying request error in stderr when the CLI
+    // fails, otherwise we have no idea what happened.
+    // https://docs.rs/thiserror/latest/thiserror/
     #[error(transparent)]
     Request(#[from] reqwest::Error),
     #[error("Header error")]
