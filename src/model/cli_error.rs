@@ -7,7 +7,7 @@ use thiserror::Error;
 pub enum CliError {
     #[error("IO Error")]
     Io(#[from] std::io::Error),
-    #[error("Request Error")]
+    #[error(transparent)]
     Request(#[from] reqwest::Error),
     #[error("Header error")]
     InvalidHeader(#[from] InvalidHeaderValue),
