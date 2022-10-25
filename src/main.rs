@@ -126,7 +126,8 @@ async fn main() {
                 let mut client = GiantApiClient::new(giant_uri.clone());
                 let hash = hash_file(path.clone())?;
                 client.check_hash_exists(&hash.hash).await
-            })().await;
+            })()
+            .await;
 
             CliResult::new(file_exists, FailureExitCode::Api).print_or_exit(format);
         }
@@ -163,12 +164,14 @@ async fn main() {
                 let collection = client.get_or_insert_collection(&ingestion_uri).await?;
 
                 println!("Checking ingestion");
-                client.get_or_insert_ingestion(
-                    &ingestion_uri,
-                    &collection,
-                    path.to_path_buf(),
-                    languages.to_vec(),
-                ).await?;
+                client
+                    .get_or_insert_ingestion(
+                        &ingestion_uri,
+                        &collection,
+                        path.to_path_buf(),
+                        languages.to_vec(),
+                    )
+                    .await?;
 
                 println!("Starting crawl");
                 ingestion_upload(
@@ -178,8 +181,10 @@ async fn main() {
                     bucket,
                     progress_reader,
                     format,
-                ).await
-            })().await;
+                )
+                .await
+            })()
+            .await;
 
             CliResult::new(result, FailureExitCode::Upload).print_or_exit(format);
         }
@@ -206,8 +211,9 @@ async fn main() {
 
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
-                let mut blobs =
-                    client.get_blobs_in_collection(collection, &ListBlobsFilter::All).await?;
+                let mut blobs = client
+                    .get_blobs_in_collection(collection, &ListBlobsFilter::All)
+                    .await?;
 
                 while !blobs.is_empty() {
                     for blob in blobs {
@@ -229,7 +235,9 @@ async fn main() {
                         client.delete_blob(&blob.uri).await?;
                         println!("Deleted blob {}", blob.uri);
                     }
-                    blobs = client.get_blobs_in_collection(collection, &ListBlobsFilter::All).await?;
+                    blobs = client
+                        .get_blobs_in_collection(collection, &ListBlobsFilter::All)
+                        .await?;
                 }
 
                 println!("Deleting collection {}", collection);
@@ -237,7 +245,8 @@ async fn main() {
                 println!("Deleted collection {}", collection);
 
                 Ok(())
-            })().await;
+            })()
+            .await;
 
             CliResult::new(result, FailureExitCode::Api).print_or_exit(format);
         }

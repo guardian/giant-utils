@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use clap::ValueEnum;
+use reqwest::{header::HeaderMap, Client, Error, StatusCode, Url};
 use reqwest::{RequestBuilder, Response};
-use reqwest::{Client, header::HeaderMap, Error, StatusCode, Url};
 
 use crate::model::blob::{Blob, BlobResp};
 use crate::{
@@ -106,8 +106,9 @@ impl GiantApiClient {
             let create_collection = CreateCollection {
                 name: collection.to_owned(),
             };
-            let res =
-                self.send_request(self.client.post(collections_url).json(&create_collection)).await?;
+            let res = self
+                .send_request(self.client.post(collections_url).json(&create_collection))
+                .await?;
             let status = res.status();
 
             if status == StatusCode::UNAUTHORIZED {
@@ -155,7 +156,9 @@ impl GiantApiClient {
                 default: Some(false),
             };
 
-            let res = self.send_request(self.client.post(url).json(&create_ingestion)).await?;
+            let res = self
+                .send_request(self.client.post(url).json(&create_ingestion))
+                .await?;
             let status = res.status();
 
             if status == StatusCode::OK {
