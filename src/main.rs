@@ -1,8 +1,10 @@
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use crate::giant_api::{GiantApiClient, ListBlobsFilter};
 use clap::{Parser, Subcommand};
 use hash::hash_file;
+use humantime::format_duration;
 use ingestion::{
     ingestion_upload::ingestion_upload,
     progress_reader::{empty_progress_reader, progress_reader_from_path},
@@ -206,6 +208,7 @@ async fn main() {
             giant_uri,
             collection,
         } => {
+            let start_time = SystemTime::now();
             let result: Result<(), CliError> = (|| async {
                 let mut client = GiantApiClient::new(giant_uri.clone());
 
@@ -232,8 +235,13 @@ async fn main() {
                             );
                         }
                         println!("Deleting blob {}", blob.uri);
+                        let delete_blob_start_time = SystemTime::now();
                         client.delete_blob(&blob.uri).await?;
-                        println!("Deleted blob {}", blob.uri);
+                        println!(
+                            "Deleted blob {} in {}",
+                            blob.uri,
+                            format_duration(delete_blob_start_time.elapsed().unwrap())
+                        );
                     }
                     blobs = client
                         .get_blobs_in_collection(collection, &ListBlobsFilter::All)
@@ -247,6 +255,13 @@ async fn main() {
                 Ok(())
             })()
             .await;
+
+            // Incrementing a counter in an async context is surprisingly hard in Rust,
+            // so we don't know how many blobs we deleted (for now, we can count the log lines).
+            println!(
+                "Deleted some blobs in {}",
+                format_duration(start_time.elapsed().unwrap())
+            );
 
             CliResult::new(result, FailureExitCode::Api).print_or_exit(format);
         }
