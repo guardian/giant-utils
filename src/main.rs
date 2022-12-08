@@ -74,7 +74,7 @@ enum Commands {
         languages: String,
         /// The bucket you wish to upload to
         bucket: String,
-        /// Override the object store endpoint
+        /// Override the object store endpoint, access key id and secret key must be set as environment variables.
         #[clap(long)]
         object_store_endpoint: Option<http::Uri>,
         /// Continue from a previous ingestion using its log

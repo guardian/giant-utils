@@ -15,13 +15,11 @@ impl S3Client {
     pub async fn new(bucket_name: &str) -> Self {
         let region_provider = Region::new("eu-west-1");
 
-        let credentials_provider = DefaultCredentialsChain::builder()
-            .region(region_provider)
-            .build()
-            .await;
+        let credentials_provider = DefaultCredentialsChain::builder().build().await;
 
         let shared_config = aws_config::from_env()
             .credentials_provider(credentials_provider)
+            .region(region_provider)
             .load()
             .await;
 
@@ -36,10 +34,7 @@ impl S3Client {
     pub async fn from_endpoint(endpoint: http::Uri, bucket_name: &str) -> Self {
         let region_provider = Region::new("eu-west-1");
 
-        let credentials_provider = DefaultCredentialsChain::builder()
-            .region(region_provider)
-            .build()
-            .await;
+        let credentials_provider = DefaultCredentialsChain::builder().build().await;
 
         let shared_config = aws_config::from_env()
             .credentials_provider(credentials_provider)
@@ -50,7 +45,9 @@ impl S3Client {
 
         let s3_config = config::Builder::from(&shared_config)
             .endpoint_resolver(endpoint)
+            .region(region_provider)
             .build();
+
         let client = Client::from_conf(s3_config);
 
         S3Client {
