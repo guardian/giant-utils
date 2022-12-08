@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use crate::giant_api::{GiantApiClient, ListBlobsFilter};
+use crate::{
+    giant_api::{GiantApiClient, ListBlobsFilter},
+    services::s3_client::S3Client,
+};
 use clap::{Parser, Subcommand};
 use hash::hash_file;
 use ingestion::{
@@ -74,9 +77,15 @@ enum Commands {
         languages: String,
         /// The bucket you wish to upload to
         bucket: String,
-        /// Override the object store endpoint, access key id and secret key must be set as environment variables.
+        /// Override the S3 endpoint
         #[clap(long)]
-        object_store_endpoint: Option<http::Uri>,
+        s3_endpoint: Option<http::Uri>,
+        /// The AWS profile used for connecting to S3
+        #[clap(long)]
+        profile: Option<String>,
+        /// The AWS region
+        #[clap(long, default_value = "eu-west-1")]
+        region: String,
         /// Continue from a previous ingestion using its log
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
@@ -140,7 +149,9 @@ async fn main() {
             path,
             languages,
             bucket,
-            object_store_endpoint,
+            profile,
+            region,
+            s3_endpoint,
             progress_from,
         } => {
             // I'm sure we can do better than this.
@@ -177,13 +188,18 @@ async fn main() {
                     )
                     .await?;
 
+                let s3_client = if let Some(endpoint) = s3_endpoint {
+                    S3Client::from_endpoint(endpoint, &bucket, region, profile).await
+                } else {
+                    S3Client::new(&bucket, region, profile).await
+                };
+
                 println!("Starting crawl");
                 ingestion_upload(
                     ingestion_uri,
                     &languages,
                     path,
-                    &bucket,
-                    object_store_endpoint,
+                    s3_client,
                     progress_reader,
                     format,
                 )

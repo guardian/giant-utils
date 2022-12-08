@@ -32,17 +32,10 @@ pub async fn ingestion_upload(
     ingestion_uri: Uri,
     languages: &Vec<Language>,
     path: impl AsRef<Path>,
-    bucket_name: &str,
-    object_store_endpoint: Option<http::Uri>,
+    s3_client: S3Client,
     progress_reader: ProgressReader,
     format: &OutputFormat,
 ) -> Result<(), CliError> {
-    let s3_client = if let Some(endpoint) = object_store_endpoint {
-        S3Client::from_endpoint(endpoint, bucket_name).await
-    } else {
-        S3Client::new(bucket_name).await
-    };
-
     let (sender, mut receiver) = mpsc::unbounded_channel::<LogMessage>();
 
     // Slightly annoying clone so we can move the format into the background worker
