@@ -74,6 +74,9 @@ enum Commands {
         languages: String,
         /// The bucket you wish to upload to
         bucket: String,
+        /// Override the object store endpoint
+        #[clap(long)]
+        object_store_endpoint: Option<http::Uri>,
         /// Continue from a previous ingestion using its log
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
@@ -105,20 +108,20 @@ async fn main() {
 
     let format = &cli.format;
 
-    match &cli.command {
+    match cli.command {
         Commands::Hash { path } => {
-            CliResult::new(hash_file(path.clone()), FailureExitCode::Hash).print_or_exit(format);
+            CliResult::new(hash_file(path), FailureExitCode::Hash).print_or_exit(format);
         }
         Commands::Login { giant_uri, token } => {
             CliResult::new(
-                auth_store::set(giant_uri.as_str(), token),
+                auth_store::set(giant_uri.as_str(), &token),
                 FailureExitCode::SetAuthToken,
             )
             .exit();
         }
         Commands::CheckHash { giant_uri, hash } => {
             let mut client = GiantApiClient::new(giant_uri.clone());
-            CliResult::new(client.check_hash_exists(hash).await, FailureExitCode::Api)
+            CliResult::new(client.check_hash_exists(&hash).await, FailureExitCode::Api)
                 .print_or_exit(format);
         }
         Commands::CheckFile { giant_uri, path } => {
@@ -137,6 +140,7 @@ async fn main() {
             path,
             languages,
             bucket,
+            object_store_endpoint,
             progress_from,
         } => {
             // I'm sure we can do better than this.
@@ -160,7 +164,7 @@ async fn main() {
                     None => empty_progress_reader(),
                 };
 
-                let ingestion_uri = Uri::parse(ingestion_uri)?;
+                let ingestion_uri = Uri::parse(&ingestion_uri)?;
                 let collection = client.get_or_insert_collection(&ingestion_uri).await?;
 
                 println!("Checking ingestion");
@@ -178,7 +182,8 @@ async fn main() {
                     ingestion_uri,
                     &languages,
                     path,
-                    bucket,
+                    &bucket,
+                    object_store_endpoint,
                     progress_reader,
                     format,
                 )
@@ -197,7 +202,7 @@ async fn main() {
         } => {
             let mut client = GiantApiClient::new(giant_uri.clone());
             CliResult::new(
-                client.get_blobs_in_collection(collection, filter).await,
+                client.get_blobs_in_collection(&collection, &filter).await,
                 FailureExitCode::Api,
             )
             .print_or_exit(format);
@@ -212,7 +217,7 @@ async fn main() {
                 // Returns a maximum of 500 results,
                 // so we need to loop until we've deleted them all.
                 let mut blobs = client
-                    .get_blobs_in_collection(collection, &ListBlobsFilter::All)
+                    .get_blobs_in_collection(&collection, &ListBlobsFilter::All)
                     .await?;
 
                 while !blobs.is_empty() {
@@ -222,7 +227,7 @@ async fn main() {
                         let other_collections: Vec<String> = blob
                             .collections
                             .into_iter()
-                            .filter(|c| c != collection)
+                            .filter(|c| c != &collection)
                             .collect();
 
                         if !other_collections.is_empty() {
@@ -236,13 +241,13 @@ async fn main() {
                         println!("Deleted blob {}", blob.uri);
                     }
                     blobs = client
-                        .get_blobs_in_collection(collection, &ListBlobsFilter::All)
+                        .get_blobs_in_collection(&collection, &ListBlobsFilter::All)
                         .await?;
                 }
 
-                println!("Deleting collection {}", collection);
-                client.delete_collection(collection).await?;
-                println!("Deleted collection {}", collection);
+                println!("Deleting collection {collection}");
+                client.delete_collection(&collection).await?;
+                println!("Deleted collection {collection}");
 
                 Ok(())
             })()

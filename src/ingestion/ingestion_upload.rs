@@ -33,10 +33,15 @@ pub async fn ingestion_upload(
     languages: &Vec<Language>,
     path: impl AsRef<Path>,
     bucket_name: &str,
+    object_store_endpoint: Option<http::Uri>,
     progress_reader: ProgressReader,
     format: &OutputFormat,
 ) -> Result<(), CliError> {
-    let s3_client = S3Client::new(bucket_name).await;
+    let s3_client = if let Some(endpoint) = object_store_endpoint {
+        S3Client::from_endpoint(endpoint, bucket_name).await
+    } else {
+        S3Client::new(bucket_name).await
+    };
 
     let (sender, mut receiver) = mpsc::unbounded_channel::<LogMessage>();
 
@@ -130,12 +135,12 @@ pub async fn ingestion_upload(
 
                     let file_size = dir.metadata()?.len();
                     let ingestion_file =
-                        IngestionFile::from_file(ingestion_uri, &path, &dir).unwrap();
+                        IngestionFile::from_file(ingestion_uri, path, &dir).unwrap();
                     let metadata = FileMetadata::new(ingestion_uri, ingestion_file, languages);
                     let metadata_key =
                         format!("{METADATA_PREFIX}/{start_millis}_{uuid}.{METADATA_SUFFIX}");
                     if let Err(e) = s3_client.upload_metadata(&metadata_key, metadata).await {
-                        eprintln!("Failure in ingestion pipeline: {}", e);
+                        eprintln!("Failure in ingestion pipeline: {e}");
                         log_sender.send(LogMessage::Failure {
                             path: path.as_ref().to_owned(),
                             size: file_size,
@@ -149,7 +154,7 @@ pub async fn ingestion_upload(
                     } else {
                         let data_key = format!("{DATA_PREFIX}/{start_millis}_{uuid}.{DATA_SUFFIX}");
                         if let Err(e) = s3_client.upload_file(&data_key, &dir.path()).await {
-                            eprintln!("Failure in ingestion pipeline: {}", e);
+                            eprintln!("Failure in ingestion pipeline: {e}");
                             log_sender.send(LogMessage::Failure {
                                 path: path.as_ref().to_owned(),
                                 size: file_size,
