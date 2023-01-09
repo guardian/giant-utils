@@ -10,4 +10,5 @@ pub enum Language {
     German,
     Russian,
     Portuguese,
+    Persian,
 }
