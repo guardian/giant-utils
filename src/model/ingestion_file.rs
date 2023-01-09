@@ -39,7 +39,7 @@ impl IngestionFile {
         Ok(IngestionFile {
             uri,
             parent_uri,
-            size: metadata.len() as u64,
+            size: metadata.len(),
             last_access_time: Some(metadata.accessed()?.into()),
             last_modified_time: Some(metadata.modified()?.into()),
             creation_time: Some(metadata.created()?.into()),

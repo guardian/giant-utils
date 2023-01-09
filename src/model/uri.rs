@@ -14,8 +14,7 @@ impl Uri {
             Ok(Uri(uri.to_owned()))
         } else {
             Err(CliError::InputError(format!(
-                "URI must be in the form 'collection/ingestion'. Provided '{}'",
-                uri
+                "URI must be in the form 'collection/ingestion'. Provided '{uri}'"
             )))
         }
     }
