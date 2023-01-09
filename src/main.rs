@@ -164,6 +164,7 @@ async fn main() {
                     "german" => Language::German,
                     "portuguese" => Language::Portuguese,
                     "russian" => Language::Russian,
+                    "persian" => Language::Persian,
                     _ => panic!("Invalid language!"),
                 })
                 .collect();
