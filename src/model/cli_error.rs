@@ -1,5 +1,5 @@
-use aws_sdk_s3::{error::PutObjectError, types::SdkError};
-use aws_smithy_http::operation::Response;
+use aws_sdk_s3::operation::put_object::PutObjectError;
+use aws_smithy_http::{operation::Response, result::SdkError};
 use reqwest::{header::InvalidHeaderValue, StatusCode};
 use thiserror::Error;
 
