@@ -90,7 +90,7 @@ enum Commands {
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
         /// Number of parallel file uploads to s3
-         #[clap(short, long, default_value = "32")]
+        #[clap(short, long, default_value = "32")]
         num_parallel_uploads: usize,
     },
     /// List the blobs in a collection.
@@ -207,7 +207,7 @@ async fn main() {
                     s3_client,
                     progress_reader,
                     format,
-                    num_parallel_uploads
+                    num_parallel_uploads,
                 )
                 .await
             })()

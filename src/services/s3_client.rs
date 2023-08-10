@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use aws_sdk_s3::{config, primitives::ByteStream, Client, config::Region};
+use aws_sdk_s3::{config, config::Region, primitives::ByteStream, Client};
 use aws_smithy_http::body::SdkBody;
 
 use crate::model::file_metadata::FileMetadata;
