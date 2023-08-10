@@ -89,9 +89,9 @@ enum Commands {
         /// Continue from a previous ingestion using its log
         #[clap(short, long)]
         progress_from: Option<PathBuf>,
-        /// Number of threads with which to upload files to s3
+        /// Number of parallel file uploads to s3
          #[clap(short, long, default_value = "32")]
-        num_threads: usize,
+        num_parallel_uploads: usize,
     },
     /// List the blobs in a collection.
     /// **Currently only lists up to 500 blobs**
@@ -156,7 +156,7 @@ async fn main() {
             region,
             s3_endpoint,
             progress_from,
-            num_threads,
+            num_parallel_uploads,
         } => {
             // I'm sure we can do better than this.
             let languages: Vec<Language> = languages
@@ -207,7 +207,7 @@ async fn main() {
                     s3_client,
                     progress_reader,
                     format,
-                    num_threads
+                    num_parallel_uploads
                 )
                 .await
             })()
