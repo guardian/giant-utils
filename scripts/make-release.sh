@@ -16,7 +16,8 @@ pushd "$SCRIPT_PATH/.."
 
 VERSION=$(grep '^version =' Cargo.toml | sed 's/version = //g' | sed 's/"//g')
 
-ALL_TRIPLES=$(rustup target list --installed)
+# Some targets do not support async code so we only target ARM and x86
+ALL_TRIPLES=$(rustup target list --installed | grep -E '^(aarch64|x86)')
 
 for TRIPLE in $ALL_TRIPLES; do
     echo ''
