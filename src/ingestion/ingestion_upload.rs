@@ -35,6 +35,7 @@ pub async fn ingestion_upload(
     s3_client: S3Client,
     progress_reader: ProgressReader,
     format: &OutputFormat,
+    num_parallel_uploads: usize,
 ) -> Result<(), CliError> {
     let (sender, mut receiver) = mpsc::unbounded_channel::<LogMessage>();
 
@@ -92,6 +93,7 @@ pub async fn ingestion_upload(
 
     let pb = ProgressBar::new(total_files);
 
+    println!("Starting ingestion with buffer size {num_parallel_uploads}");
     let start_time = SystemTime::now();
     let results = stream::iter(walker)
         .map(|dir| {
@@ -172,7 +174,7 @@ pub async fn ingestion_upload(
                 }
             }
         })
-        .buffer_unordered(128)
+        .buffer_unordered(num_parallel_uploads)
         .collect::<Vec<anyhow::Result<()>>>()
         .await;
 

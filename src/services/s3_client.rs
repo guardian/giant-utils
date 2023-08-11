@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use aws_sdk_s3::{config, types::ByteStream, Client, Endpoint, Region};
+use aws_sdk_s3::{config, config::Region, primitives::ByteStream, Client};
 use aws_smithy_http::body::SdkBody;
 
 use crate::model::file_metadata::FileMetadata;
@@ -38,11 +38,10 @@ impl S3Client {
     ) -> Self {
         let region_provider = Region::new(region);
         let credentials_provider = build_credentials_provider(profile).await;
-        let endpoint = Endpoint::immutable(endpoint);
 
         let s3_config = config::Builder::new()
             .credentials_provider(credentials_provider)
-            .endpoint_resolver(endpoint)
+            .endpoint_url(endpoint.to_string())
             .region(region_provider)
             .build();
 
